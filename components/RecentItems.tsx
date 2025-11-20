@@ -52,6 +52,20 @@ const RecentItemCard: React.FC<{
 };
 
 export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) => {
+  const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
+
+  useEffect(() => {
+    // Batch load images when items change
+    if (items.length > 0) {
+      const ids = items.map(item => item.id);
+      getItemImageUrls(ids).then(urls => {
+        setImageUrls(urls);
+      }).catch(err => {
+        console.warn('Failed to load images:', err);
+      });
+    }
+  }, [items]);
+
   if (items.length === 0) {
     return null;
   }
