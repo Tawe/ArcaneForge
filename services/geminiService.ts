@@ -109,16 +109,20 @@ export const generateMagicItemText = async (
  * Generates the image for the magic item using the prompt created in the previous step.
  */
 export const generateMagicItemImage = async (
-  imagePrompt: string
+  imagePrompt: string,
+  style: string
 ): Promise<string> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
+    // Combine the image prompt with the style instruction
+    const fullPrompt = `${imagePrompt}\n\nStyle: Render this in the style of ${style}.`;
+    
     // Use gemini-2.5-flash-image for reliable image generation
     // Using generateContent because this is a multimodal model, not an Imagen model
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: imagePrompt }],
+        parts: [{ text: fullPrompt }],
       },
       config: {
         imageConfig: {

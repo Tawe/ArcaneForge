@@ -55,7 +55,7 @@ const App: React.FC = () => {
       // Step 2: Generate Image
       let finalResult = partialResult;
       try {
-        const imageUrl = await generateMagicItemImage(content.imagePrompt);
+        const imageUrl = await generateMagicItemImage(content.imagePrompt, settings.style);
         finalResult = { ...content, imageUrl };
         setResult(finalResult);
       } catch (imgErr) {
