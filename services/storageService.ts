@@ -24,6 +24,7 @@ const isSupabaseConfigured = (): boolean => {
 
 /**
  * Get cached items from localStorage
+ * Returns lightweight items (without imageUrl, imagePrompt, itemCard)
  */
 const getCachedItems = (): SavedMagicItem[] | null => {
   try {
@@ -42,22 +43,76 @@ const getCachedItems = (): SavedMagicItem[] | null => {
       return null;
     }
     
-    return JSON.parse(cached) as SavedMagicItem[];
+    const items = JSON.parse(cached) as any[];
+    // Restore to SavedMagicItem format with empty strings for missing fields
+    return items.map(item => ({
+      ...item,
+      imagePrompt: '', // Will be fetched on demand
+      itemCard: '', // Will be fetched on demand
+      imageUrl: null, // Will be fetched on demand
+    })) as SavedMagicItem[];
   } catch (error) {
     console.warn('Failed to read cache:', error);
+    // Clear corrupted cache
+    try {
+      localStorage.removeItem(CACHE_KEY_ITEMS);
+      localStorage.removeItem(CACHE_KEY_TIMESTAMP);
+    } catch (clearError) {
+      // Ignore clear errors
+    }
     return null;
   }
 };
 
 /**
  * Save items to localStorage cache
+ * Excludes large fields like imageUrl to save space
  */
 const setCachedItems = (items: SavedMagicItem[]): void => {
   try {
-    localStorage.setItem(CACHE_KEY_ITEMS, JSON.stringify(items));
+    // Create a lightweight version without large image URLs
+    const lightweightItems = items.map(item => ({
+      id: item.id,
+      created_at: item.created_at,
+      savedAt: item.savedAt,
+      itemData: item.itemData,
+      // Exclude imageUrl, imagePrompt, and itemCard to save space
+      // These will be fetched on demand when viewing an item
+    }));
+
+    const cacheData = JSON.stringify(lightweightItems);
+    const cacheSize = new Blob([cacheData]).size;
+    
+    // Check if cache would exceed ~4MB (localStorage limit is usually 5-10MB)
+    if (cacheSize > 4 * 1024 * 1024) {
+      console.warn('Cache too large, skipping cache write. Size:', cacheSize);
+      return;
+    }
+
+    localStorage.setItem(CACHE_KEY_ITEMS, cacheData);
     localStorage.setItem(CACHE_KEY_TIMESTAMP, Date.now().toString());
   } catch (error) {
-    console.warn('Failed to write cache:', error);
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.warn('localStorage quota exceeded, clearing old cache and retrying...');
+      // Try to clear old cache and retry with fewer items
+      try {
+        localStorage.removeItem(CACHE_KEY_ITEMS);
+        localStorage.removeItem(CACHE_KEY_TIMESTAMP);
+        // Retry with just the first 50 items
+        const limitedItems = items.slice(0, 50).map(item => ({
+          id: item.id,
+          created_at: item.created_at,
+          savedAt: item.savedAt,
+          itemData: item.itemData,
+        }));
+        localStorage.setItem(CACHE_KEY_ITEMS, JSON.stringify(limitedItems));
+        localStorage.setItem(CACHE_KEY_TIMESTAMP, Date.now().toString());
+      } catch (retryError) {
+        console.warn('Failed to write cache even after cleanup:', retryError);
+      }
+    } else {
+      console.warn('Failed to write cache:', error);
+    }
   }
 };
 
@@ -127,7 +182,7 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
       savedAt: new Date(item.created_at).getTime(),
     })) as SavedMagicItem[];
 
-    // Cache the results
+    // Cache the results (will handle quota errors gracefully)
     setCachedItems(items);
     
     return limit ? items.slice(0, limit) : items;
