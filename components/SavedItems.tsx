@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SavedMagicItem } from '../services/storageService';
-import { getSavedItems, searchSavedItems, removeItem, getItemImageUrl } from '../services/storageService';
+import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls } from '../services/storageService';
 import { MagicItemResult } from '../types';
 
 interface SavedItemsProps {
@@ -13,12 +13,18 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRarity, setFilterRarity] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
+  const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
 
   const loadItems = async () => {
     setIsLoading(true);
     try {
       const items = await getSavedItems();
       setSavedItems(items);
+      
+      // Batch load images for all items
+      const ids = items.map(item => item.id);
+      const urls = await getItemImageUrls(ids);
+      setImageUrls(urls);
     } catch (error) {
       console.error('Failed to load items:', error);
     } finally {
@@ -31,6 +37,11 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     try {
       const items = await searchSavedItems(query);
       setSavedItems(items);
+      
+      // Batch load images for search results
+      const ids = items.map(item => item.id);
+      const urls = await getItemImageUrls(ids);
+      setImageUrls(prev => ({ ...prev, ...urls }));
     } catch (error) {
       console.error('Failed to search items:', error);
     } finally {
@@ -100,21 +111,8 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     config: { color: string; border: string };
     onViewItem: (item: MagicItemResult) => void;
     onDelete: (id: string, e: React.MouseEvent) => void;
-  }> = ({ item, config, onViewItem, onDelete }) => {
-    const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl || null);
-
-    useEffect(() => {
-      // Always try to load image if we don't have one
-      if (!imageUrl) {
-        getItemImageUrl(item.id).then(url => {
-          if (url) {
-            setImageUrl(url);
-          }
-        }).catch((err) => {
-          console.warn('Failed to load image for item:', item.id, err);
-        });
-      }
-    }, [item.id, imageUrl]);
+    imageUrl: string | null | undefined;
+  }> = ({ item, config, onViewItem, onDelete, imageUrl }) => {
 
     return (
       <div
@@ -250,7 +248,7 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
             if (!item.itemData) {
               return null; // Skip items with missing data
             }
-            return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} />;
+            return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} imageUrl={imageUrls[item.id] || item.imageUrl} />;
           })}
         </div>
 

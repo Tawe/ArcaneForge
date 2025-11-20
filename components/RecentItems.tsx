@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SavedMagicItem, getItemImageUrl } from '../services/storageService';
+import { SavedMagicItem, getItemImageUrls } from '../services/storageService';
 import { MagicItemResult } from '../types';
 
 interface RecentItemsProps {
@@ -12,21 +12,8 @@ const RecentItemCard: React.FC<{
   item: SavedMagicItem;
   config: { color: string; border: string };
   onViewItem: (item: MagicItemResult) => void;
-}> = ({ item, config, onViewItem }) => {
-  const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl || null);
-
-  useEffect(() => {
-    // Always try to load image if we don't have one
-    if (!imageUrl) {
-      getItemImageUrl(item.id).then(url => {
-        if (url) {
-          setImageUrl(url);
-        }
-      }).catch((err) => {
-        console.warn('Failed to load image for item:', item.id, err);
-      });
-    }
-  }, [item.id, imageUrl]);
+  imageUrl: string | null | undefined;
+}> = ({ item, config, onViewItem, imageUrl }) => {
 
   return (
     <div
@@ -90,7 +77,7 @@ export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) =
             if (!item.itemData) {
               return null;
             }
-            return <RecentItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} />;
+            return <RecentItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} imageUrl={imageUrls[item.id] || item.imageUrl} />;
           })}
         </div>
       </div>
