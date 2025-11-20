@@ -251,29 +251,6 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
             return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} imageUrl={imageUrls[item.id] || item.imageUrl} />;
           })}
         </div>
-
-                {/* Item Info */}
-                <div>
-                  <h3 className={`text-lg font-fantasy font-bold mb-1 ${config.color} line-clamp-1`}>
-                    {item.itemData.name}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-serif italic mb-2">
-                    {item.itemData.type} • {item.itemData.rarity}
-                  </p>
-                  <p className="text-sm text-slate-400 line-clamp-2 mb-3 font-serif">
-                    {item.itemData.description}
-                  </p>
-                  
-                  {/* Footer */}
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span className="font-mono">{formatDate(item)}</span>
-                    <span className="text-amber-600 font-fantasy">View →</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
       )}
     </div>
   );
