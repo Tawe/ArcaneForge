@@ -49,6 +49,17 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
         return null;
       }
 
+      // Skip if the line contains type, rarity, and attunement info (already in header)
+      const lowerTrimmed = trimmed.toLowerCase();
+      const hasType = lowerTrimmed.includes(itemData.type.toLowerCase());
+      const hasRarity = lowerTrimmed.includes(itemData.rarity.toLowerCase());
+      const hasAttunement = lowerTrimmed.includes('attunement') || lowerTrimmed.includes('requires attunement');
+      
+      // If it has type, rarity, and possibly attunement, it's likely the redundant header line
+      if (index < 5 && hasType && hasRarity) {
+        return null;
+      }
+
       // Headers: Starts with # or is a short bold line (e.g. "**Hidden Curse**")
       const isHeader = trimmed.startsWith('#') || (trimmed.startsWith('**') && trimmed.endsWith('**') && trimmed.length < 40 && !trimmed.includes(':'));
       
