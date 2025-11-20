@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SavedMagicItem } from '../services/storageService';
-import { getSavedItems, searchSavedItems, removeItem } from '../services/storageService';
+import { getSavedItems, searchSavedItems, removeItem, getItemImageUrl } from '../services/storageService';
 import { MagicItemResult } from '../types';
 
 interface SavedItemsProps {
@@ -94,6 +94,82 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     });
   };
 
+  // Item card component with lazy image loading
+  const ItemCard: React.FC<{
+    item: SavedMagicItem;
+    config: { color: string; border: string };
+    onViewItem: (item: MagicItemResult) => void;
+    onDelete: (id: string, e: React.MouseEvent) => void;
+  }> = ({ item, config, onViewItem, onDelete }) => {
+    const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl || null);
+    const [isLoadingImage, setIsLoadingImage] = useState(!item.imageUrl);
+
+    useEffect(() => {
+      // Lazy load image if not already loaded
+      if (!imageUrl && isLoadingImage) {
+        getItemImageUrl(item.id).then(url => {
+          setImageUrl(url);
+          setIsLoadingImage(false);
+        }).catch(() => {
+          setIsLoadingImage(false);
+        });
+      }
+    }, [item.id, imageUrl, isLoadingImage]);
+
+    return (
+      <div
+        onClick={() => onViewItem(item)}
+        className="relative bg-[#0f0f13] border border-[#2a2a35] rounded-md p-4 cursor-pointer hover:border-amber-600/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] group"
+      >
+        {/* Delete Button */}
+        <button
+          onClick={(e) => onDelete(item.id, e)}
+          className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-950/30 border border-red-900/50 rounded text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-950/50 text-xs"
+          title="Remove from collection"
+        >
+          ×
+        </button>
+
+        {/* Item Image/Icon */}
+        <div className={`aspect-square rounded mb-4 overflow-hidden border-2 ${config.border} bg-black relative`}>
+          {imageUrl ? (
+            <img
+              src={imageUrl}
+              alt={item.itemData.name}
+              className="w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-[#050505]">
+              <span className="text-4xl opacity-30">🔮</span>
+            </div>
+          )}
+          <div className={`absolute inset-0 opacity-10 pointer-events-none shadow-[inset_0_0_50px_currentColor] ${config.color}`}></div>
+        </div>
+
+        {/* Item Info */}
+        <div>
+          <h3 className={`text-lg font-fantasy font-bold mb-1 ${config.color} line-clamp-1`}>
+            {item.itemData.name}
+          </h3>
+          <p className="text-xs text-slate-500 font-serif italic mb-2">
+            {item.itemData.type} • {item.itemData.rarity}
+          </p>
+          <p className="text-sm text-slate-400 line-clamp-2 mb-3 font-serif">
+            {item.itemData.description}
+          </p>
+          
+          {/* Footer */}
+          <div className="flex items-center justify-between text-xs text-slate-600">
+            <span className="font-mono">{formatDate(item)}</span>
+            <span className="text-amber-600 font-fantasy">View →</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="w-full max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
@@ -174,39 +250,9 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
             if (!item.itemData) {
               return null; // Skip items with missing data
             }
-            const config = rarityConfig[item.itemData.rarity] || rarityConfig['Common'];
-            return (
-              <div
-                key={item.id}
-                onClick={() => onViewItem(item)}
-                className="relative bg-[#0f0f13] border border-[#2a2a35] rounded-md p-4 cursor-pointer hover:border-amber-600/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] group"
-              >
-                {/* Delete Button */}
-                <button
-                  onClick={(e) => handleDelete(item.id, e)}
-                  className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-950/30 border border-red-900/50 rounded text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-950/50 text-xs"
-                  title="Remove from collection"
-                >
-                  ×
-                </button>
-
-                {/* Item Image/Icon */}
-                <div className={`aspect-square rounded mb-4 overflow-hidden border-2 ${config.border} bg-black relative`}>
-                  {item.imageUrl ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.itemData.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-[#050505]">
-                      <span className="text-4xl opacity-30">🔮</span>
-                    </div>
-                  )}
-                  <div className={`absolute inset-0 opacity-10 pointer-events-none shadow-[inset_0_0_50px_currentColor] ${config.color}`}></div>
-                </div>
+            return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} />;
+          })}
+        </div>
 
                 {/* Item Info */}
                 <div>
