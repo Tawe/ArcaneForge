@@ -134,7 +134,7 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
                <span className="text-xs text-amber-700">gp</span>
             </div>
         </div>
-        
+
          {/* JSON Data (Collapsed) */}
          <details className="group">
             <summary className="text-[10px] uppercase tracking-widest text-slate-600 cursor-pointer hover:text-indigo-400 transition-colors list-none flex items-center gap-2">

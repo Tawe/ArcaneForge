@@ -1,15 +1,38 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GenerationSettings, MagicItemResult } from './types';
 import { DEFAULT_SETTINGS } from './constants';
 import { generateMagicItemText, generateMagicItemImage } from './services/geminiService';
+import { saveItem, getSavedItems, SavedMagicItem } from './services/storageService';
 import { GeneratorForm } from './components/GeneratorForm';
 import { MagicItemDisplay } from './components/MagicItemDisplay';
+import { SavedItems } from './components/SavedItems';
+import { RecentItems } from './components/RecentItems';
+
+type ViewMode = 'generate' | 'saved';
 
 const App: React.FC = () => {
   const [settings, setSettings] = useState<GenerationSettings>(DEFAULT_SETTINGS);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<MagicItemResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>('generate');
+  const [recentItems, setRecentItems] = useState<SavedMagicItem[]>([]);
+
+  // Load recent items when on generate view
+  useEffect(() => {
+    if (viewMode === 'generate') {
+      loadRecentItems();
+    }
+  }, [viewMode]);
+
+  const loadRecentItems = async () => {
+    try {
+      const items = await getSavedItems();
+      setRecentItems(items.slice(0, 6)); // Get first 6 (most recent)
+    } catch (error) {
+      console.error('Failed to load recent items:', error);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!process.env.API_KEY) {
@@ -30,13 +53,30 @@ const App: React.FC = () => {
       setResult(partialResult);
 
       // Step 2: Generate Image
+      let finalResult = partialResult;
       try {
         const imageUrl = await generateMagicItemImage(content.imagePrompt);
-        setResult({ ...content, imageUrl });
+        finalResult = { ...content, imageUrl };
+        setResult(finalResult);
       } catch (imgErr) {
         // Image generation failed (likely quota/API limits), but item was created successfully
         console.warn("Visual manifestation failed, but the scroll was written.", imgErr);
         // Result already set with text content, so we continue without image
+      }
+
+      // Step 3: Automatically save to database (silently fails if Supabase not configured)
+      try {
+        const saved = await saveItem(finalResult);
+        if (saved) {
+          console.log('Item automatically saved to archives');
+          // Reload recent items to show the new one
+          await loadRecentItems();
+        }
+      } catch (saveErr) {
+        // Only log if it's an unexpected error (not just missing config)
+        if (!saveErr?.message?.includes('not configured')) {
+          console.warn('Failed to save item to database:', saveErr);
+        }
       }
 
     } catch (err) {
@@ -75,58 +115,100 @@ const App: React.FC = () => {
               </p>
             </div>
           </div>
+          <nav className="flex items-center gap-4">
+            <button
+              onClick={() => setViewMode('generate')}
+              className={`px-4 py-2 rounded text-sm font-fantasy uppercase tracking-wider transition-colors ${
+                viewMode === 'generate'
+                  ? 'bg-amber-950/30 border border-amber-600 text-amber-400'
+                  : 'bg-[#0f0f13] border border-[#2a2a35] text-slate-400 hover:text-amber-400 hover:border-amber-600/50'
+              }`}
+            >
+              Forge
+            </button>
+            <button
+              onClick={() => setViewMode('saved')}
+              className={`px-4 py-2 rounded text-sm font-fantasy uppercase tracking-wider transition-colors ${
+                viewMode === 'saved'
+                  ? 'bg-amber-950/30 border border-amber-600 text-amber-400'
+                  : 'bg-[#0f0f13] border border-[#2a2a35] text-slate-400 hover:text-amber-400 hover:border-amber-600/50'
+              }`}
+            >
+              Archives
+            </button>
+          </nav>
         </div>
       </header>
 
       <main className="flex-grow p-6 md:p-8 lg:p-12">
-        
-        {/* Form Area */}
-        <section className="mb-16 animate-slide-down">
-          <GeneratorForm 
-            settings={settings} 
-            onSettingsChange={setSettings} 
-            onGenerate={handleGenerate}
-            isGenerating={isGenerating}
+        {viewMode === 'saved' ? (
+          <SavedItems
+            onViewItem={(item) => {
+              setResult(item);
+              setViewMode('generate');
+            }}
+            onBack={() => setViewMode('generate')}
           />
+        ) : (
+          <>
+            {/* Form Area */}
+            <section className="mb-16 animate-slide-down">
+              <GeneratorForm 
+                settings={settings} 
+                onSettingsChange={setSettings} 
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
 
-          {error && (
-            <div className="mt-6 p-4 bg-red-950/30 border border-red-900/50 rounded text-red-300 text-center text-sm max-w-2xl mx-auto font-serif italic">
-              ⚠️ {error}
-            </div>
-          )}
-        </section>
-
-        {/* Output Area */}
-        <section className="w-full">
-          
-          {/* Empty State */}
-          {!result && !isGenerating && !error && (
-            <div className="flex flex-col items-center justify-center opacity-20 py-20 select-none">
-                <div className="w-32 h-32 border-2 border-dashed border-slate-600 rounded-full flex items-center justify-center mb-6">
-                   <span className="text-6xl filter grayscale">📜</span>
+              {error && (
+                <div className="mt-6 p-4 bg-red-950/30 border border-red-900/50 rounded text-red-300 text-center text-sm max-w-2xl mx-auto font-serif italic">
+                  ⚠️ {error}
                 </div>
-                <h3 className="text-3xl font-fantasy text-slate-500 tracking-widest">THE ANVIL AWAITS</h3>
-            </div>
-          )}
-          
-          {/* Loading State */}
-          {isGenerating && !result && (
-              <div className="flex flex-col items-center justify-center py-32 animate-pulse">
-                <div className="relative w-24 h-24">
-                   <div className="absolute inset-0 border-4 border-t-amber-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
-                   <div className="absolute inset-2 border-4 border-t-transparent border-r-indigo-500 border-b-transparent border-l-amber-700 rounded-full animate-spin-reverse opacity-70"></div>
+              )}
+            </section>
+
+            {/* Output Area */}
+            <section className="w-full">
+              
+              {/* Empty State */}
+              {!result && !isGenerating && !error && (
+                <div className="flex flex-col items-center justify-center opacity-20 py-20 select-none">
+                    <div className="w-32 h-32 border-2 border-dashed border-slate-600 rounded-full flex items-center justify-center mb-6">
+                       <span className="text-6xl filter grayscale">📜</span>
+                    </div>
+                    <h3 className="text-3xl font-fantasy text-slate-500 tracking-widest">THE ANVIL AWAITS</h3>
                 </div>
-                <h3 className="text-2xl font-fantasy text-amber-500 mt-8 tracking-widest">Communing with the Weave...</h3>
-                <p className="text-sm text-indigo-400 font-mono mt-2">Forging lore and light</p>
-              </div>
-          )}
+              )}
+              
+              {/* Loading State */}
+              {isGenerating && !result && (
+                  <div className="flex flex-col items-center justify-center py-32 animate-pulse">
+                    <div className="relative w-24 h-24">
+                       <div className="absolute inset-0 border-4 border-t-amber-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
+                       <div className="absolute inset-2 border-4 border-t-transparent border-r-indigo-500 border-b-transparent border-l-amber-700 rounded-full animate-spin-reverse opacity-70"></div>
+                    </div>
+                    <h3 className="text-2xl font-fantasy text-amber-500 mt-8 tracking-widest">Communing with the Weave...</h3>
+                    <p className="text-sm text-indigo-400 font-mono mt-2">Forging lore and light</p>
+                  </div>
+              )}
 
-          {/* Results */}
-          {result && (
-            <MagicItemDisplay result={result} />
-          )}
-        </section>
+              {/* Results */}
+              {result && (
+                <MagicItemDisplay result={result} />
+              )}
+            </section>
 
+            {/* Recent Items */}
+            <RecentItems 
+              items={recentItems} 
+              onViewItem={(item) => {
+                setResult(item);
+                // Scroll to top to show the item
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
+          </>
+        )}
       </main>
     </div>
   );

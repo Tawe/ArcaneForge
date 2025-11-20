@@ -19,12 +19,17 @@ export const generateMagicItemText = async (
     
     Inputs provided:
     - Rarity: ${settings.rarity}
-    - Type: ${settings.type}
+    - Item Type: ${settings.type} (This is the actual type of magic item - weapon, armor, wondrous item, etc. NOT a visual style)
     - Theme: ${settings.theme}
-    - Style: ${settings.style}
+    - Visual Art Style: ${settings.style} (This is ONLY for the image generation visual style - oil painting, watercolor, etc. It does NOT affect the item type or description)
     - Power Band: ${settings.powerBand}
     - Include Curse: ${settings.includeCurse}
     - Include Plot Hook: ${settings.includePlotHook}
+
+    IMPORTANT: The "Visual Art Style" (${settings.style}) is ONLY for how the image should be rendered visually. 
+    The item itself must be a ${settings.type}, not a painting or artwork. 
+    For example, if the type is "Wondrous Item" and style is "Oil Painting", create a wondrous item (like an amulet, orb, or artifact) 
+    that will be DEPICTED in an oil painting style, not an item that IS a painting.
 
     Price_gp should use pricing guidelines inspired by Xanathar's Guide but scaled.
     Tone: evocative, immersive, but mechanically precise.
@@ -66,7 +71,7 @@ export const generateMagicItemText = async (
       },
       imagePrompt: {
         type: Type.STRING,
-        description: "A concise, concrete description for the Imagen API. No text in image.",
+        description: `A concise, concrete description for image generation. Describe the ${settings.type} itself (not a painting of it). The visual style "${settings.style}" will be applied automatically - do not mention the style in the prompt. Focus on the item's appearance, materials, magical effects visible, and composition. No text in image.`,
       },
       itemCard: {
         type: Type.STRING,
