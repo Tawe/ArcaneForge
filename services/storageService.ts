@@ -324,14 +324,50 @@ export const getItemImageUrl = async (id: string): Promise<string | null> => {
       .eq('id', id)
       .single();
 
-    if (error || !data) {
+    if (error) {
+      console.error('Error fetching image:', error);
       return null;
     }
 
-    return data.image_url || null;
+    if (!data || !data.image_url) {
+      return null;
+    }
+
+    return data.image_url;
   } catch (error) {
     console.error('Failed to get item image:', error);
     return null;
+  }
+};
+
+/**
+ * Batch load image URLs for multiple items (more efficient)
+ */
+export const getItemImageUrls = async (ids: string[]): Promise<Record<string, string | null>> => {
+  if (!isSupabaseConfigured() || ids.length === 0) {
+    return {};
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('id, image_url')
+      .in('id', ids);
+
+    if (error) {
+      console.error('Error fetching images:', error);
+      return {};
+    }
+
+    const result: Record<string, string | null> = {};
+    (data || []).forEach(item => {
+      result[item.id] = item.image_url || null;
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Failed to get item images:', error);
+    return {};
   }
 };
 

@@ -102,19 +102,19 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     onDelete: (id: string, e: React.MouseEvent) => void;
   }> = ({ item, config, onViewItem, onDelete }) => {
     const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl || null);
-    const [isLoadingImage, setIsLoadingImage] = useState(!item.imageUrl);
 
     useEffect(() => {
-      // Lazy load image if not already loaded
-      if (!imageUrl && isLoadingImage) {
+      // Always try to load image if we don't have one
+      if (!imageUrl) {
         getItemImageUrl(item.id).then(url => {
-          setImageUrl(url);
-          setIsLoadingImage(false);
-        }).catch(() => {
-          setIsLoadingImage(false);
+          if (url) {
+            setImageUrl(url);
+          }
+        }).catch((err) => {
+          console.warn('Failed to load image for item:', item.id, err);
         });
       }
-    }, [item.id, imageUrl, isLoadingImage]);
+    }, [item.id, imageUrl]);
 
     return (
       <div
