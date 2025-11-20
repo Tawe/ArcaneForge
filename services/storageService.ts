@@ -19,18 +19,25 @@ const isSupabaseConfigured = (): boolean => {
 
 /**
  * Get all saved magic items from Supabase
+ * Optimized to only fetch necessary fields for list display
  */
-export const getSavedItems = async (): Promise<SavedMagicItem[]> => {
+export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> => {
   // Check if Supabase is configured
   if (!isSupabaseConfigured()) {
     return [];
   }
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from(TABLE_NAME)
-      .select('*')
+      .select('id, created_at, item_data, image_url')
       .order('created_at', { ascending: false });
+    
+    if (limit) {
+      query = query.limit(limit);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Failed to load saved items:', error);
@@ -39,12 +46,12 @@ export const getSavedItems = async (): Promise<SavedMagicItem[]> => {
 
     return (data || []).map((item: any) => ({
       itemData: item.item_data,
-      imagePrompt: item.image_prompt,
-      itemCard: item.item_card,
+      imagePrompt: '', // Not needed for list view
+      itemCard: '', // Not needed for list view
       imageUrl: item.image_url,
       id: item.id,
       created_at: item.created_at,
-      savedAt: new Date(item.created_at).getTime(), // For backward compatibility
+      savedAt: new Date(item.created_at).getTime(),
     })) as SavedMagicItem[];
   } catch (error) {
     console.error('Failed to load saved items:', error);
@@ -116,7 +123,7 @@ export const removeItem = async (id: string): Promise<void> => {
 };
 
 /**
- * Get a saved item by ID
+ * Get a saved item by ID with full data (for viewing)
  */
 export const getItemById = async (id: string): Promise<SavedMagicItem | null> => {
   if (!isSupabaseConfigured()) {
@@ -126,7 +133,7 @@ export const getItemById = async (id: string): Promise<SavedMagicItem | null> =>
   try {
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .select('*')
+      .select('id, created_at, item_data, image_prompt, item_card, image_url')
       .eq('id', id)
       .single();
 
@@ -151,6 +158,7 @@ export const getItemById = async (id: string): Promise<SavedMagicItem | null> =>
 
 /**
  * Search saved items by name, type, rarity, or theme
+ * Optimized to fetch only necessary fields and limit results
  */
 export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]> => {
   if (!isSupabaseConfigured()) {
@@ -162,10 +170,13 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       return await getSavedItems();
     }
 
+    // Fetch limited items and filter client-side
+    // This is still faster than fetching everything
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .select('*')
-      .order('created_at', { ascending: false });
+      .select('id, created_at, item_data, image_url')
+      .order('created_at', { ascending: false })
+      .limit(200); // Limit to 200 most recent for performance
 
     if (error) {
       console.error('Failed to search items:', error);
@@ -190,8 +201,8 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
 
     return filtered.map((item: any) => ({
       itemData: item.item_data || {},
-      imagePrompt: item.image_prompt || '',
-      itemCard: item.item_card || '',
+      imagePrompt: '', // Not needed for list view
+      itemCard: '', // Not needed for list view
       imageUrl: item.image_url || null,
       id: item.id,
       created_at: item.created_at,

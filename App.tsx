@@ -27,8 +27,8 @@ const App: React.FC = () => {
 
   const loadRecentItems = async () => {
     try {
-      const items = await getSavedItems();
-      setRecentItems(items.slice(0, 6)); // Get first 6 (most recent)
+      const items = await getSavedItems(6); // Only fetch 6 items
+      setRecentItems(items);
     } catch (error) {
       console.error('Failed to load recent items:', error);
     }
@@ -143,8 +143,19 @@ const App: React.FC = () => {
       <main className="flex-grow p-6 md:p-8 lg:p-12">
         {viewMode === 'saved' ? (
           <SavedItems
-            onViewItem={(item) => {
-              setResult(item);
+            onViewItem={async (item) => {
+              // If item doesn't have full data, fetch it
+              if (!item.itemCard || !item.imagePrompt) {
+                const { getItemById } = await import('./services/storageService');
+                const fullItem = await getItemById(item.id);
+                if (fullItem) {
+                  setResult(fullItem);
+                } else {
+                  setResult(item);
+                }
+              } else {
+                setResult(item);
+              }
               setViewMode('generate');
             }}
             onBack={() => setViewMode('generate')}
@@ -201,8 +212,19 @@ const App: React.FC = () => {
             {/* Recent Items */}
             <RecentItems 
               items={recentItems} 
-              onViewItem={(item) => {
-                setResult(item);
+              onViewItem={async (item) => {
+                // If item doesn't have full data, fetch it
+                if (!item.itemCard || !item.imagePrompt) {
+                  const { getItemById } = await import('./services/storageService');
+                  const fullItem = await getItemById(item.id);
+                  if (fullItem) {
+                    setResult(fullItem);
+                  } else {
+                    setResult(item);
+                  }
+                } else {
+                  setResult(item);
+                }
                 // Scroll to top to show the item
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
