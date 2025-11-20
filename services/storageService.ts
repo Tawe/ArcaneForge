@@ -9,6 +9,11 @@ export interface SavedMagicItem extends MagicItemResult {
 // Database table name
 const TABLE_NAME = 'magic_items';
 
+// Cache keys
+const CACHE_KEY_ITEMS = 'arcane-forge-items-cache';
+const CACHE_KEY_TIMESTAMP = 'arcane-forge-items-cache-timestamp';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
 /**
  * Check if Supabase is properly configured
  */
@@ -18,8 +23,60 @@ const isSupabaseConfigured = (): boolean => {
 };
 
 /**
+ * Get cached items from localStorage
+ */
+const getCachedItems = (): SavedMagicItem[] | null => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY_ITEMS);
+    const timestamp = localStorage.getItem(CACHE_KEY_TIMESTAMP);
+    
+    if (!cached || !timestamp) {
+      return null;
+    }
+    
+    const age = Date.now() - parseInt(timestamp, 10);
+    if (age > CACHE_DURATION) {
+      // Cache expired
+      localStorage.removeItem(CACHE_KEY_ITEMS);
+      localStorage.removeItem(CACHE_KEY_TIMESTAMP);
+      return null;
+    }
+    
+    return JSON.parse(cached) as SavedMagicItem[];
+  } catch (error) {
+    console.warn('Failed to read cache:', error);
+    return null;
+  }
+};
+
+/**
+ * Save items to localStorage cache
+ */
+const setCachedItems = (items: SavedMagicItem[]): void => {
+  try {
+    localStorage.setItem(CACHE_KEY_ITEMS, JSON.stringify(items));
+    localStorage.setItem(CACHE_KEY_TIMESTAMP, Date.now().toString());
+  } catch (error) {
+    console.warn('Failed to write cache:', error);
+  }
+};
+
+/**
+ * Invalidate the cache (call when items are added/deleted)
+ */
+export const invalidateCache = (): void => {
+  try {
+    localStorage.removeItem(CACHE_KEY_ITEMS);
+    localStorage.removeItem(CACHE_KEY_TIMESTAMP);
+  } catch (error) {
+    console.warn('Failed to invalidate cache:', error);
+  }
+};
+
+/**
  * Get all saved magic items from Supabase
  * Optimized to only fetch necessary fields for list display
+ * Uses localStorage cache for instant loading
  */
 export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> => {
   // Check if Supabase is configured
@@ -27,6 +84,22 @@ export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> =
     return [];
   }
 
+  // Try to get from cache first
+  const cached = getCachedItems();
+  if (cached) {
+    // Return cached data immediately, but also refresh in background
+    refreshItemsInBackground(limit);
+    return limit ? cached.slice(0, limit) : cached;
+  }
+
+  // No cache, fetch from database
+  return await fetchItemsFromDatabase(limit);
+};
+
+/**
+ * Fetch items from database (internal function)
+ */
+const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]> => {
   try {
     let query = supabase
       .from(TABLE_NAME)
@@ -44,7 +117,7 @@ export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> =
       return [];
     }
 
-    return (data || []).map((item: any) => ({
+    const items = (data || []).map((item: any) => ({
       itemData: item.item_data,
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
@@ -53,10 +126,25 @@ export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> =
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
     })) as SavedMagicItem[];
+
+    // Cache the results
+    setCachedItems(items);
+    
+    return limit ? items.slice(0, limit) : items;
   } catch (error) {
     console.error('Failed to load saved items:', error);
     return [];
   }
+};
+
+/**
+ * Refresh items in background (non-blocking)
+ */
+const refreshItemsInBackground = async (limit?: number): Promise<void> => {
+  // Don't await - let it run in background
+  fetchItemsFromDatabase(limit).catch(err => {
+    console.warn('Background refresh failed:', err);
+  });
 };
 
 /**
@@ -86,12 +174,17 @@ export const saveItem = async (item: MagicItemResult): Promise<SavedMagicItem | 
       throw new Error('Failed to save item to database');
     }
 
-    return {
+    const savedItem = {
       ...item,
       id: data.id,
       created_at: data.created_at,
       savedAt: new Date(data.created_at).getTime(),
     };
+
+    // Invalidate cache so new item appears
+    invalidateCache();
+
+    return savedItem;
   } catch (error) {
     console.error('Failed to save item:', error);
     throw error;
@@ -116,6 +209,9 @@ export const removeItem = async (id: string): Promise<void> => {
       console.error('Failed to remove item:', error);
       throw new Error('Failed to remove item from database');
     }
+
+    // Invalidate cache so deleted item disappears
+    invalidateCache();
   } catch (error) {
     console.error('Failed to remove item:', error);
     throw error;
@@ -158,7 +254,7 @@ export const getItemById = async (id: string): Promise<SavedMagicItem | null> =>
 
 /**
  * Search saved items by name, type, rarity, or theme
- * Optimized to fetch only necessary fields and limit results
+ * Uses cache when available, falls back to database
  */
 export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]> => {
   if (!isSupabaseConfigured()) {
@@ -170,8 +266,33 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       return await getSavedItems();
     }
 
-    // Fetch limited items and filter client-side
-    // This is still faster than fetching everything
+    // Try cache first
+    const cached = getCachedItems();
+    if (cached && cached.length > 0) {
+      // Search in cached data (fast)
+      const lowerQuery = query.toLowerCase();
+      const filtered = cached.filter((item) => {
+        const itemData = item.itemData || {};
+        const name = itemData.name?.toLowerCase() || '';
+        const type = itemData.type?.toLowerCase() || '';
+        const rarity = itemData.rarity?.toLowerCase() || '';
+        const theme = itemData.theme?.toLowerCase() || '';
+        const description = itemData.description?.toLowerCase() || '';
+
+        return name.includes(lowerQuery) ||
+               type.includes(lowerQuery) ||
+               rarity.includes(lowerQuery) ||
+               theme.includes(lowerQuery) ||
+               description.includes(lowerQuery);
+      });
+
+      // Refresh in background
+      refreshItemsInBackground();
+      
+      return filtered;
+    }
+
+    // No cache, fetch from database
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .select('id, created_at, item_data, image_url')
@@ -199,7 +320,7 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
              description.includes(lowerQuery);
     });
 
-    return filtered.map((item: any) => ({
+    const items = filtered.map((item: any) => ({
       itemData: item.item_data || {},
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
@@ -208,6 +329,12 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
     })) as SavedMagicItem[];
+
+    // Cache the full results for future searches
+    const allItems = await fetchItemsFromDatabase();
+    setCachedItems(allItems);
+
+    return items;
   } catch (error) {
     console.error('Failed to search items:', error);
     return [];
