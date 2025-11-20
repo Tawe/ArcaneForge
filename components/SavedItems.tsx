@@ -97,21 +97,13 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   return (
     <div className="w-full max-w-7xl mx-auto animate-fade-in">
       {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h2 className="text-3xl font-fantasy font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-500 to-amber-700 mb-2">
-            ARCHIVED ARTIFACTS
-          </h2>
-          <p className="text-sm text-slate-500 font-mono">
-            {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} in collection
-          </p>
-        </div>
-        <button
-          onClick={onBack}
-          className="px-4 py-2 bg-[#0f0f13] border border-[#2a2a35] text-slate-300 rounded hover:border-amber-600 hover:text-amber-400 transition-colors font-fantasy text-sm uppercase tracking-wider"
-        >
-          ← Back to Forge
-        </button>
+      <div className="mb-8">
+        <h2 className="text-3xl font-fantasy font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-500 to-amber-700 mb-2">
+          ARCHIVED ARTIFACTS
+        </h2>
+        <p className="text-sm text-slate-500 font-mono">
+          {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} in collection
+        </p>
       </div>
 
       {/* Search and Filter Bar */}
