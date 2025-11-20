@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { GenerationSettings, MagicItemResult } from './types';
 import { DEFAULT_SETTINGS } from './constants';
 import { generateMagicItemText, generateMagicItemImage } from './services/geminiService';
 import { saveItem, getSavedItems, SavedMagicItem } from './services/storageService';
 import { GeneratorForm } from './components/GeneratorForm';
 import { MagicItemDisplay } from './components/MagicItemDisplay';
-import { SavedItems } from './components/SavedItems';
-import { RecentItems } from './components/RecentItems';
+
+// Lazy load components that aren't needed immediately
+const SavedItems = lazy(() => import('./components/SavedItems').then(module => ({ default: module.SavedItems })));
+const RecentItems = lazy(() => import('./components/RecentItems').then(module => ({ default: module.RecentItems })));
 
 type ViewMode = 'generate' | 'saved';
 
@@ -18,10 +20,14 @@ const App: React.FC = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('generate');
   const [recentItems, setRecentItems] = useState<SavedMagicItem[]>([]);
 
-  // Load recent items when on generate view
+  // Load recent items when on generate view (defer initial load)
   useEffect(() => {
     if (viewMode === 'generate') {
-      loadRecentItems();
+      // Defer loading recent items slightly to prioritize initial render
+      const timer = setTimeout(() => {
+        loadRecentItems();
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [viewMode]);
 
@@ -142,24 +148,34 @@ const App: React.FC = () => {
 
       <main className="flex-grow p-6 md:p-8 lg:p-12">
         {viewMode === 'saved' ? (
-          <SavedItems
-            onViewItem={async (item) => {
-              // If item doesn't have full data, fetch it
-              if (!item.itemCard || !item.imagePrompt) {
-                const { getItemById } = await import('./services/storageService');
-                const fullItem = await getItemById(item.id);
-                if (fullItem) {
-                  setResult(fullItem);
+          <Suspense fallback={
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="relative w-16 h-16">
+                <div className="absolute inset-0 border-4 border-t-amber-500 border-r-transparent border-b-purple-500 border-l-transparent rounded-full animate-spin"></div>
+                <div className="absolute inset-2 border-4 border-t-transparent border-r-indigo-500 border-b-transparent border-l-amber-700 rounded-full animate-spin-reverse opacity-70"></div>
+              </div>
+              <p className="text-sm text-slate-500 font-mono mt-4">Loading archives...</p>
+            </div>
+          }>
+            <SavedItems
+              onViewItem={async (item) => {
+                // If item doesn't have full data, fetch it
+                if (!item.itemCard || !item.imagePrompt) {
+                  const { getItemById } = await import('./services/storageService');
+                  const fullItem = await getItemById(item.id);
+                  if (fullItem) {
+                    setResult(fullItem);
+                  } else {
+                    setResult(item);
+                  }
                 } else {
                   setResult(item);
                 }
-              } else {
-                setResult(item);
-              }
-              setViewMode('generate');
-            }}
-            onBack={() => setViewMode('generate')}
-          />
+                setViewMode('generate');
+              }}
+              onBack={() => setViewMode('generate')}
+            />
+          </Suspense>
         ) : (
           <>
             {/* Form Area */}
@@ -210,25 +226,29 @@ const App: React.FC = () => {
             </section>
 
             {/* Recent Items */}
-            <RecentItems 
-              items={recentItems} 
-              onViewItem={async (item) => {
-                // If item doesn't have full data, fetch it
-                if (!item.itemCard || !item.imagePrompt) {
-                  const { getItemById } = await import('./services/storageService');
-                  const fullItem = await getItemById(item.id);
-                  if (fullItem) {
-                    setResult(fullItem);
-                  } else {
-                    setResult(item);
-                  }
-                } else {
-                  setResult(item);
-                }
-                // Scroll to top to show the item
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            />
+            {recentItems.length > 0 && (
+              <Suspense fallback={null}>
+                <RecentItems 
+                  items={recentItems} 
+                  onViewItem={async (item) => {
+                    // If item doesn't have full data, fetch it
+                    if (!item.itemCard || !item.imagePrompt) {
+                      const { getItemById } = await import('./services/storageService');
+                      const fullItem = await getItemById(item.id);
+                      if (fullItem) {
+                        setResult(fullItem);
+                      } else {
+                        setResult(item);
+                      }
+                    } else {
+                      setResult(item);
+                    }
+                    // Scroll to top to show the item
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              </Suspense>
+            )}
           </>
         )}
       </main>

@@ -153,17 +153,18 @@ export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> =
 
 /**
  * Fetch items from database (internal function)
+ * Excludes image_url to dramatically reduce payload size (images are 100KB-500KB+ each)
  */
 const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]> => {
   try {
     let query = supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data, image_url')
+      .select('id, created_at, item_data')
       .order('created_at', { ascending: false });
     
-    if (limit) {
-      query = query.limit(limit);
-    }
+    // Always limit queries to prevent huge payloads
+    const queryLimit = limit || 500;
+    query = query.limit(queryLimit);
 
     const { data, error } = await query;
 
@@ -176,7 +177,7 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
       itemData: item.item_data,
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: item.image_url,
+      imageUrl: null, // Images loaded on demand via getItemImageUrl
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
@@ -185,7 +186,7 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
     // Cache the results (will handle quota errors gracefully)
     setCachedItems(items);
     
-    return limit ? items.slice(0, limit) : items;
+    return items;
   } catch (error) {
     console.error('Failed to load saved items:', error);
     return [];
@@ -275,6 +276,7 @@ export const removeItem = async (id: string): Promise<void> => {
 
 /**
  * Get a saved item by ID with full data (for viewing)
+ * This is the only function that fetches image_url - called on demand
  */
 export const getItemById = async (id: string): Promise<SavedMagicItem | null> => {
   if (!isSupabaseConfigured()) {
@@ -303,6 +305,32 @@ export const getItemById = async (id: string): Promise<SavedMagicItem | null> =>
     };
   } catch (error) {
     console.error('Failed to get item:', error);
+    return null;
+  }
+};
+
+/**
+ * Get image URL for an item (separate function for lazy loading)
+ */
+export const getItemImageUrl = async (id: string): Promise<string | null> => {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data.image_url || null;
+  } catch (error) {
+    console.error('Failed to get item image:', error);
     return null;
   }
 };
@@ -347,12 +375,12 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       return filtered;
     }
 
-    // No cache, fetch from database
+    // No cache, fetch from database (without images for speed)
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data, image_url')
+      .select('id, created_at, item_data')
       .order('created_at', { ascending: false })
-      .limit(200); // Limit to 200 most recent for performance
+      .limit(500); // Limit to 500 most recent for performance
 
     if (error) {
       console.error('Failed to search items:', error);
@@ -379,7 +407,7 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       itemData: item.item_data || {},
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: item.image_url || null,
+      imageUrl: null, // Will be fetched on demand
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),

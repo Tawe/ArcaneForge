@@ -47,6 +47,8 @@ export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) =
                       src={item.imageUrl}
                       alt={item.itemData.name}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-[#050505]">

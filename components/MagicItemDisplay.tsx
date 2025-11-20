@@ -108,6 +108,8 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
                 src={imageUrl} 
                 alt={itemData.name} 
                 className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-[#0f0f13]">
