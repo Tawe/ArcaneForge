@@ -1,12 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { MagicItemResult } from '../types';
+import { getItemFullImageUrl } from '../services/storageService';
 
 interface MagicItemDisplayProps {
   result: MagicItemResult;
 }
 
 export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) => {
-  const { itemData, itemCard, imageUrl } = result;
+  const { itemData, itemCard, imageUrl: initialImageUrl } = result;
+  const [imageUrl, setImageUrl] = useState<string | undefined>(initialImageUrl);
+  const [isLoadingFullImage, setIsLoadingFullImage] = useState(false);
+
+  // Progressive loading: if we have a thumbnail, load full image
+  useEffect(() => {
+    setImageUrl(initialImageUrl);
+    
+    // Check if this is a saved item with a thumbnail that needs full image
+    const savedItem = result as any;
+    if (initialImageUrl && savedItem.id) {
+      const img = new Image();
+      img.onload = () => {
+        // If image is small (likely thumbnail < 300px), load full version
+        if (img.naturalWidth < 300 || img.naturalHeight < 300) {
+          setIsLoadingFullImage(true);
+          getItemFullImageUrl(savedItem.id).then(fullUrl => {
+            if (fullUrl) {
+              setImageUrl(fullUrl);
+            }
+            setIsLoadingFullImage(false);
+          }).catch(() => {
+            setIsLoadingFullImage(false);
+          });
+        }
+      };
+      img.src = initialImageUrl;
+    }
+  }, [initialImageUrl, result]);
 
   const rarityConfig: Record<string, { color: string; border: string; shadow: string }> = {
     'Common': { color: 'text-slate-400', border: 'border-slate-600', shadow: 'shadow-slate-900' },
@@ -104,13 +133,20 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
             <div className={`absolute inset-0 opacity-20 pointer-events-none shadow-[inset_0_0_100px_currentColor] ${config.color}`}></div>
             
             {imageUrl ? (
-              <img 
-                src={imageUrl} 
-                alt={itemData.name} 
-                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
-                loading="lazy"
-                decoding="async"
-              />
+              <>
+                <img 
+                  src={imageUrl} 
+                  alt={itemData.name} 
+                  className="w-full h-full object-cover transition-opacity duration-500 group-hover:scale-110"
+                  loading="lazy"
+                  decoding="async"
+                />
+                {isLoadingFullImage && (
+                  <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                    <div className="w-8 h-8 border-2 border-amber-500/50 border-t-amber-500 rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center bg-[#0f0f13]">
                  <div className="text-6xl animate-pulse grayscale opacity-20">🔮</div>

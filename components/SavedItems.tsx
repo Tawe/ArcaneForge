@@ -21,10 +21,20 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       const items = await getSavedItems();
       setSavedItems(items);
       
-      // Batch load images for all items
-      const ids = items.map(item => item.id);
-      const urls = await getItemImageUrls(ids);
-      setImageUrls(urls);
+      // Load images in background (don't block UI)
+      // Only load first 20 images immediately, rest load as needed
+      const idsToLoad = items.slice(0, 20).map(item => item.id);
+      getItemImageUrls(idsToLoad).then(urls => {
+        setImageUrls(urls);
+        
+        // Load remaining images in background
+        if (items.length > 20) {
+          const remainingIds = items.slice(20).map(item => item.id);
+          getItemImageUrls(remainingIds).then(remainingUrls => {
+            setImageUrls(prev => ({ ...prev, ...remainingUrls }));
+          });
+        }
+      });
     } catch (error) {
       console.error('Failed to load items:', error);
     } finally {
@@ -38,10 +48,20 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       const items = await searchSavedItems(query);
       setSavedItems(items);
       
-      // Batch load images for search results
-      const ids = items.map(item => item.id);
-      const urls = await getItemImageUrls(ids);
-      setImageUrls(prev => ({ ...prev, ...urls }));
+      // Load images in background (don't block UI)
+      // Only load first 20 images immediately
+      const idsToLoad = items.slice(0, 20).map(item => item.id);
+      getItemImageUrls(idsToLoad).then(urls => {
+        setImageUrls(prev => ({ ...prev, ...urls }));
+        
+        // Load remaining images in background
+        if (items.length > 20) {
+          const remainingIds = items.slice(20).map(item => item.id);
+          getItemImageUrls(remainingIds).then(remainingUrls => {
+            setImageUrls(prev => ({ ...prev, ...remainingUrls }));
+          });
+        }
+      });
     } catch (error) {
       console.error('Failed to search items:', error);
     } finally {
@@ -134,9 +154,21 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
             <img
               src={imageUrl}
               alt={item.itemData.name}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-opacity duration-300"
               loading="lazy"
               decoding="async"
+              onError={(e) => {
+                // Hide broken images
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+              onLoad={(e) => {
+                // Progressive enhancement: if this is a thumbnail, load full image
+                const img = e.target as HTMLImageElement;
+                if (img.naturalWidth < 300) {
+                  // Likely a thumbnail, could load full image in background
+                  // But for now, thumbnails are sufficient for list view
+                }
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-[#050505]">

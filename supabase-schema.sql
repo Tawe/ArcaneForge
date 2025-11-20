@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS magic_items (
   image_prompt TEXT NOT NULL,
   item_card TEXT NOT NULL,
   image_url TEXT,
+  thumbnail_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -20,6 +21,17 @@ CREATE INDEX IF NOT EXISTS idx_magic_items_item_data ON magic_items USING GIN (i
 -- This helps when querying without images
 CREATE INDEX IF NOT EXISTS idx_magic_items_list_view ON magic_items(created_at DESC) 
   WHERE image_url IS NOT NULL;
+
+-- Add thumbnail_url column if it doesn't exist (for existing databases)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'magic_items' AND column_name = 'thumbnail_url'
+  ) THEN
+    ALTER TABLE magic_items ADD COLUMN thumbnail_url TEXT;
+  END IF;
+END $$;
 
 -- Enable Row Level Security (RLS) - adjust policies as needed
 ALTER TABLE magic_items ENABLE ROW LEVEL SECURITY;

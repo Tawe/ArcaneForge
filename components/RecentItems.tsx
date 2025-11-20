@@ -55,9 +55,11 @@ export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) =
   const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    // Batch load images when items change
+    // Load images in background (non-blocking)
+    // Recent items are only 6, so load all at once but don't block
     if (items.length > 0) {
       const ids = items.map(item => item.id);
+      // Don't await - let it load in background
       getItemImageUrls(ids).then(urls => {
         setImageUrls(urls);
       }).catch(err => {

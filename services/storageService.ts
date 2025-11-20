@@ -1,5 +1,6 @@
 import { MagicItemResult } from '../types';
 import { supabase } from './supabaseClient';
+import { generateThumbnail } from './imageUtils';
 
 export interface SavedMagicItem extends MagicItemResult {
   id: string;
@@ -153,13 +154,13 @@ export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> =
 
 /**
  * Fetch items from database (internal function)
- * Excludes image_url to dramatically reduce payload size (images are 100KB-500KB+ each)
+ * Includes thumbnail_url for fast progressive loading
  */
 const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]> => {
   try {
     let query = supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data')
+      .select('id, created_at, item_data, thumbnail_url')
       .order('created_at', { ascending: false });
     
     // Always limit queries to prevent huge payloads
@@ -177,7 +178,7 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
       itemData: item.item_data,
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: null, // Images loaded on demand via getItemImageUrl
+      imageUrl: item.thumbnail_url || null, // Use thumbnail for list view
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
@@ -214,6 +215,17 @@ export const saveItem = async (item: MagicItemResult): Promise<SavedMagicItem | 
   }
 
   try {
+    // Generate thumbnail if we have an image
+    let thumbnailUrl: string | null = null;
+    if (item.imageUrl) {
+      try {
+        thumbnailUrl = await generateThumbnail(item.imageUrl, 200, 200, 0.7);
+      } catch (thumbError) {
+        console.warn('Failed to generate thumbnail, saving without it:', thumbError);
+        // Continue without thumbnail
+      }
+    }
+
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .insert({
@@ -221,6 +233,7 @@ export const saveItem = async (item: MagicItemResult): Promise<SavedMagicItem | 
         image_prompt: item.imagePrompt,
         item_card: item.itemCard,
         image_url: item.imageUrl || null,
+        thumbnail_url: thumbnailUrl,
       })
       .select()
       .single();
@@ -341,33 +354,75 @@ export const getItemImageUrl = async (id: string): Promise<string | null> => {
 };
 
 /**
- * Batch load image URLs for multiple items (more efficient)
+ * Batch load thumbnail URLs for multiple items (for list views)
+ * Uses thumbnails for fast progressive loading
  */
-export const getItemImageUrls = async (ids: string[]): Promise<Record<string, string | null>> => {
+export const getItemImageUrls = async (ids: string[], useThumbnails: boolean = true): Promise<Record<string, string | null>> => {
   if (!isSupabaseConfigured() || ids.length === 0) {
     return {};
   }
 
   try {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .select('id, image_url')
-      .in('id', ids);
-
-    if (error) {
-      console.error('Error fetching images:', error);
-      return {};
+    // Split into chunks of 50 to avoid query size limits
+    const chunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += 50) {
+      chunks.push(ids.slice(i, i + 50));
     }
 
-    const result: Record<string, string | null> = {};
-    (data || []).forEach(item => {
-      result[item.id] = item.image_url || null;
-    });
+    const allResults: Record<string, string | null> = {};
+    const fieldToSelect = useThumbnails ? 'id, thumbnail_url' : 'id, image_url';
     
-    return result;
+    // Load chunks in parallel for better performance
+    await Promise.all(chunks.map(async (chunk) => {
+      const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select(fieldToSelect)
+        .in('id', chunk);
+
+      if (error) {
+        console.error('Error fetching images:', error);
+        return;
+      }
+
+      (data || []).forEach(item => {
+        if (useThumbnails) {
+          allResults[item.id] = item.thumbnail_url || null;
+        } else {
+          allResults[item.id] = item.image_url || null;
+        }
+      });
+    }));
+    
+    return allResults;
   } catch (error) {
     console.error('Failed to get item images:', error);
     return {};
+  }
+};
+
+/**
+ * Load full-size image for an item (for detail view)
+ */
+export const getItemFullImageUrl = async (id: string): Promise<string | null> => {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('image_url')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return data.image_url || null;
+  } catch (error) {
+    console.error('Failed to get full image:', error);
+    return null;
   }
 };
 
