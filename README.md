@@ -1,20 +1,72 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# ⚒ Arcane Forge
 
-# Run and deploy your AI Studio app
+**Artificer's Compendium v1.0**
 
-This contains everything you need to run your app locally.
+A high-quality D&D magic item generator powered by Google Gemini AI. Create unique magic items with rich lore, detailed descriptions, and stunning visual representations.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1CjX8mL55SqixOlJ8PC_99z10-C7jMU3E
+## Features
 
-## Run Locally
+- **Customizable Generation**: Choose from various item types, rarities, themes, and visual styles
+- **AI-Powered Content**: Uses Google Gemini to generate detailed item descriptions, lore, and mechanics
+- **Visual Generation**: Creates stunning images using Imagen via Gemini
+- **Rich Customization Options**:
+  - Item types: Weapons, Armor, Potions, Rings, Wands, and more
+  - Rarity levels: Common through Artifact
+  - Themes: Celestial, Infernal, Feywild, Elemental, Draconic, and more
+  - Visual styles: Oil Painting, Watercolor, Pen and Ink, Hyper-Realistic, and more
+  - Power bands: Low Magic, Standard, High Magic, Mythic
+  - Optional curse mechanics
+  - Optional plot hooks for campaign integration
 
-**Prerequisites:**  Node.js
+## Prerequisites
 
+- Node.js (v18 or higher recommended)
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Getting Started
+
+1. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+2. **Set up your API key:**
+   Create a `.env.local` file in the root directory and add your Gemini API key:
+   ```
+   API_KEY=your_gemini_api_key_here
+   ```
+   
+   You can get a Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey).
+
+3. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open your browser:**
+   Navigate to the URL shown in the terminal (typically `http://localhost:5173`)
+
+## Build for Production
+
+```bash
+npm run build
+```
+
+The built files will be in the `dist` directory.
+
+## Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Technology Stack
+
+- **React 19** - UI framework
+- **TypeScript** - Type safety
+- **Vite** - Build tool and dev server
+- **Google Gemini AI** - Content and image generation
+- **Tailwind CSS** - Styling (via inline classes)
+
+## License
+
+Private project
