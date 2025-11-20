@@ -34,7 +34,9 @@ const App: React.FC = () => {
         const imageUrl = await generateMagicItemImage(content.imagePrompt);
         setResult({ ...content, imageUrl });
       } catch (imgErr) {
+        // Image generation failed (likely quota/API limits), but item was created successfully
         console.warn("Visual manifestation failed, but the scroll was written.", imgErr);
+        // Result already set with text content, so we continue without image
       }
 
     } catch (err) {
