@@ -1,0 +1,5 @@
+{
+  "name": "Arcane Forge",
+  "description": "A high-quality D&D magic item generator using Google Gemini for lore and Imagen for visuals.",
+  "requestFramePermissions": []
+}
