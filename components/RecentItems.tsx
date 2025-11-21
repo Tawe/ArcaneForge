@@ -58,20 +58,23 @@ export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) =
     // Items already have thumbnails from fetchItemsFromDatabase
     // Build imageUrls map from items
     const urls: Record<string, string | null> = {};
+    const itemsWithoutThumbnails: string[] = [];
+    
     items.forEach(item => {
       if (item.imageUrl) {
         urls[item.id] = item.imageUrl;
+      } else {
+        itemsWithoutThumbnails.push(item.id);
       }
     });
     setImageUrls(urls);
     
-    // Only fetch missing thumbnails
-    const itemsWithoutThumbnails = items.filter(item => !item.imageUrl).map(item => item.id);
+    // For items without thumbnails, fetch full images as fallback
     if (itemsWithoutThumbnails.length > 0) {
-      getItemImageUrls(itemsWithoutThumbnails, true).then(fetchedUrls => {
+      getItemImageUrls(itemsWithoutThumbnails, false).then(fetchedUrls => {
         setImageUrls(prev => ({ ...prev, ...fetchedUrls }));
       }).catch(err => {
-        console.warn('Failed to load images:', err);
+        console.warn('Failed to load fallback images:', err);
       });
     }
   }, [items]);

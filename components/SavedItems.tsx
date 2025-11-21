@@ -21,14 +21,32 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       const items = await getSavedItems();
       setSavedItems(items);
       
-      // Build imageUrls map from items (they already have thumbnails or full images from fetchItemsFromDatabase)
+      // Build imageUrls map from items (they already have thumbnails from fetchItemsFromDatabase)
       const existingUrls: Record<string, string | null> = {};
+      const itemsWithoutThumbnails: string[] = [];
+      
       items.forEach(item => {
         if (item.imageUrl) {
           existingUrls[item.id] = item.imageUrl;
+        } else {
+          itemsWithoutThumbnails.push(item.id);
         }
       });
       setImageUrls(existingUrls);
+      
+      // For items without thumbnails, fetch full images as fallback (lazy load)
+      if (itemsWithoutThumbnails.length > 0) {
+        // Fetch in batches to avoid overwhelming the network
+        const batchSize = 10;
+        for (let i = 0; i < itemsWithoutThumbnails.length; i += batchSize) {
+          const batch = itemsWithoutThumbnails.slice(i, i + batchSize);
+          getItemImageUrls(batch, false).then(fullImageUrls => {
+            setImageUrls(prev => ({ ...prev, ...fullImageUrls }));
+          }).catch(err => {
+            console.warn('Failed to load fallback images:', err);
+          });
+        }
+      }
     } catch (error) {
       console.error('Failed to load items:', error);
     } finally {
