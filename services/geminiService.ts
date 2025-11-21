@@ -31,7 +31,15 @@ export const generateMagicItemText = async (
     For example, if the type is "Wondrous Item" and style is "Oil Painting", create a wondrous item (like an amulet, orb, or artifact) 
     that will be DEPICTED in an oil painting style, not an item that IS a painting.
 
-    Price_gp should use pricing guidelines inspired by Xanathar's Guide but scaled.
+    POWER BAND GUIDELINES - The Power Band (${settings.powerBand}) MUST significantly influence the item's power level and mechanics:
+    - "Low Magic": Items should be subtle, limited in scope, and have minor effects. Suitable for low-level campaigns. Effects should be situational or have significant limitations.
+    - "Standard": Items should match typical D&D 5e power levels for the given rarity. Balanced and appropriate for most campaigns.
+    - "High Magic": Items should be more powerful than standard for their rarity. Effects should be more versatile, frequent, or impactful. Suitable for high-magic campaigns.
+    - "Mythic": Items should be exceptionally powerful, even for their rarity. Effects should be dramatic, game-changing, or have minimal limitations. Suitable for epic-level campaigns.
+    
+    The Power Band should affect: damage/effect scaling, number of uses per day, range/duration of effects, versatility of abilities, and overall impact on gameplay. Higher power bands should feel more impressive and impactful.
+
+    Price_gp should use pricing guidelines inspired by Xanathar's Guide but scaled appropriately for the Power Band (higher power bands = higher prices).
     Tone: evocative, immersive, but mechanically precise.
   `;
 
