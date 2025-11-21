@@ -25,49 +25,59 @@ const isSupabaseConfigured = (): boolean => {
 };
 
 /**
- * Get cached image URLs from localStorage
+ * Get cached image URL flags from localStorage
+ * We only cache a boolean flag indicating if an item has a thumbnail,
+ * not the actual base64 string (to avoid quota issues)
  */
-const getCachedImageUrls = (): Record<string, string | null> => {
+const getCachedImageUrlFlags = (): Record<string, boolean> => {
   try {
     const cached = localStorage.getItem(CACHE_KEY_IMAGE_URLS);
     if (!cached) {
       return {};
     }
-    return JSON.parse(cached) as Record<string, string | null>;
+    return JSON.parse(cached) as Record<string, boolean>;
   } catch (error) {
-    console.warn('Failed to read image URLs cache:', error);
+    console.warn('Failed to read image URL flags cache:', error);
     return {};
   }
 };
 
 /**
- * Save image URLs to localStorage cache
+ * Save image URL flags to localStorage cache
+ * Only stores boolean flags (has thumbnail: true/false), not the actual base64 strings
+ * This prevents quota issues while still allowing us to know which items have thumbnails
  */
-const setCachedImageUrls = (urls: Record<string, string | null>): void => {
+const setCachedImageUrlFlags = (urls: Record<string, string | null>): void => {
   try {
-    // Merge with existing cache
-    const existing = getCachedImageUrls();
-    const merged = { ...existing, ...urls };
+    // Convert to flags: only store boolean indicating if item has a thumbnail
+    const flags: Record<string, boolean> = {};
+    Object.entries(urls).forEach(([id, url]) => {
+      flags[id] = url !== null && url !== undefined;
+    });
     
-    // Limit cache size to prevent quota issues (keep only most recent 200)
+    // Merge with existing cache
+    const existing = getCachedImageUrlFlags();
+    const merged = { ...existing, ...flags };
+    
+    // Limit cache size to prevent quota issues (keep only most recent 500)
     const entries = Object.entries(merged);
-    if (entries.length > 200) {
-      // Keep the most recent 200 entries (assuming newer items are added last)
-      const limited = Object.fromEntries(entries.slice(-200));
+    if (entries.length > 500) {
+      // Keep the most recent 500 entries
+      const limited = Object.fromEntries(entries.slice(-500));
       localStorage.setItem(CACHE_KEY_IMAGE_URLS, JSON.stringify(limited));
     } else {
       localStorage.setItem(CACHE_KEY_IMAGE_URLS, JSON.stringify(merged));
     }
   } catch (error) {
     if (error instanceof DOMException && error.name === 'QuotaExceededError') {
-      console.warn('Image URLs cache quota exceeded, clearing...');
+      console.warn('Image URL flags cache quota exceeded, clearing...');
       try {
         localStorage.removeItem(CACHE_KEY_IMAGE_URLS);
       } catch (clearError) {
         // Ignore
       }
     } else {
-      console.warn('Failed to write image URLs cache:', error);
+      console.warn('Failed to write image URL flags cache:', error);
     }
   }
 };
@@ -95,14 +105,16 @@ const getCachedItems = (): SavedMagicItem[] | null => {
     }
     
     const items = JSON.parse(cached) as any[];
-    const imageUrls = getCachedImageUrls();
+    // Note: We don't restore image URLs from cache anymore to avoid quota issues
+    // Image URLs will be fetched from database when needed (they're already in the query)
+    // The items from fetchItemsFromDatabase already include thumbnails
     
-    // Restore to SavedMagicItem format with image URLs from cache
+    // Restore to SavedMagicItem format
     return items.map(item => ({
       ...item,
       imagePrompt: '', // Will be fetched on demand
       itemCard: '', // Will be fetched on demand
-      imageUrl: imageUrls[item.id] || null, // Restore from image URLs cache
+      imageUrl: item.imageUrl || null, // Keep imageUrl if it was in the cached item
     })) as SavedMagicItem[];
   } catch (error) {
     console.warn('Failed to read cache:', error);
@@ -119,18 +131,20 @@ const getCachedItems = (): SavedMagicItem[] | null => {
 
 /**
  * Save items to localStorage cache
- * Excludes large fields like imageUrl to save space
+ * Includes thumbnail URLs (they're small now: 150x150 at 0.5 quality)
+ * Excludes full image URLs, imagePrompt, and itemCard to save space
  */
 const setCachedItems = (items: SavedMagicItem[]): void => {
   try {
-    // Create a lightweight version without large image URLs
+    // Include thumbnail URLs since they're now smaller (150x150, 0.5 quality)
+    // This allows images to persist across navigation without quota issues
     const lightweightItems = items.map(item => ({
       id: item.id,
       created_at: item.created_at,
       savedAt: item.savedAt,
       itemData: item.itemData,
-      // Exclude imageUrl, imagePrompt, and itemCard to save space
-      // These will be fetched on demand when viewing an item
+      imageUrl: item.imageUrl || null, // Include thumbnail URLs (small enough now)
+      // Exclude imagePrompt and itemCard to save space (fetched on demand)
     }));
 
     const cacheData = JSON.stringify(lightweightItems);
@@ -241,17 +255,16 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
     })) as SavedMagicItem[];
 
     // Cache the results (will handle quota errors gracefully)
+    // Note: items already include imageUrl (thumbnails), so they're cached with the items
     setCachedItems(items);
     
-    // Also cache image URLs separately so they persist across navigation
-    const imageUrls: Record<string, string | null> = {};
+    // Cache flags indicating which items have thumbnails (not the actual base64 strings)
+    const imageUrlFlags: Record<string, string | null> = {};
     items.forEach(item => {
-      if (item.imageUrl) {
-        imageUrls[item.id] = item.imageUrl;
-      }
+      imageUrlFlags[item.id] = item.imageUrl;
     });
-    if (Object.keys(imageUrls).length > 0) {
-      setCachedImageUrls(imageUrls);
+    if (Object.keys(imageUrlFlags).length > 0) {
+      setCachedImageUrlFlags(imageUrlFlags);
     }
     
     return items;
@@ -283,10 +296,12 @@ export const saveItem = async (item: MagicItemResult): Promise<SavedMagicItem | 
 
   try {
     // Generate thumbnail if we have an image
+    // Using smaller dimensions (150x150) and lower quality (0.5) for better compression
+    // This reduces storage size significantly while still looking good in list views
     let thumbnailUrl: string | null = null;
     if (item.imageUrl) {
       try {
-        thumbnailUrl = await generateThumbnail(item.imageUrl, 200, 200, 0.7);
+        thumbnailUrl = await generateThumbnail(item.imageUrl, 150, 150, 0.5);
       } catch (thumbError) {
         console.warn('Failed to generate thumbnail, saving without it:', thumbError);
         // Continue without thumbnail
@@ -430,28 +445,11 @@ export const getItemImageUrls = async (ids: string[], useThumbnails: boolean = t
   }
 
   try {
-    // Check cache first for image URLs
-    const cachedUrls = getCachedImageUrls();
-    const cachedResults: Record<string, string | null> = {};
-    const uncachedIds: string[] = [];
-    
-    ids.forEach(id => {
-      if (cachedUrls[id] !== undefined) {
-        cachedResults[id] = cachedUrls[id];
-      } else {
-        uncachedIds.push(id);
-      }
-    });
-    
-    // If all URLs are cached, return immediately
-    if (uncachedIds.length === 0) {
-      return cachedResults;
-    }
-    
-    // Fetch only uncached URLs from database
+    // Don't check localStorage cache for base64 strings (to avoid quota issues)
+    // Always fetch from database - it's fast since we're only fetching thumbnails
     const chunks: string[][] = [];
-    for (let i = 0; i < uncachedIds.length; i += 50) {
-      chunks.push(uncachedIds.slice(i, i + 50));
+    for (let i = 0; i < ids.length; i += 50) {
+      chunks.push(ids.slice(i, i + 50));
     }
 
     const fetchedResults: Record<string, string | null> = {};
@@ -478,17 +476,15 @@ export const getItemImageUrls = async (ids: string[], useThumbnails: boolean = t
       });
     }));
     
-    // Cache the fetched results
+    // Cache flags (not the actual base64 strings) to track which items have thumbnails
     if (Object.keys(fetchedResults).length > 0) {
-      setCachedImageUrls(fetchedResults);
+      setCachedImageUrlFlags(fetchedResults);
     }
     
-    // Return combined results (cached + fetched)
-    return { ...cachedResults, ...fetchedResults };
+    return fetchedResults;
   } catch (error) {
     console.error('Failed to get item images:', error);
-    // Return cached results even if fetch failed
-    return getCachedImageUrls();
+    return {};
   }
 };
 
@@ -600,15 +596,13 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
     const allItems = await fetchItemsFromDatabase();
     setCachedItems(allItems);
     
-    // Also cache image URLs from search results
-    const imageUrls: Record<string, string | null> = {};
+    // Cache flags indicating which items have thumbnails (not the actual base64 strings)
+    const imageUrlFlags: Record<string, string | null> = {};
     items.forEach(item => {
-      if (item.imageUrl) {
-        imageUrls[item.id] = item.imageUrl;
-      }
+      imageUrlFlags[item.id] = item.imageUrl;
     });
-    if (Object.keys(imageUrls).length > 0) {
-      setCachedImageUrls(imageUrls);
+    if (Object.keys(imageUrlFlags).length > 0) {
+      setCachedImageUrlFlags(imageUrlFlags);
     }
 
     return items;
