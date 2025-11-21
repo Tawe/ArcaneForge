@@ -13,6 +13,7 @@ const TABLE_NAME = 'magic_items';
 // Cache keys
 const CACHE_KEY_ITEMS = 'arcane-forge-items-cache';
 const CACHE_KEY_TIMESTAMP = 'arcane-forge-items-cache-timestamp';
+const CACHE_KEY_IMAGE_URLS = 'arcane-forge-image-urls-cache'; // Separate cache for image URLs
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -24,8 +25,57 @@ const isSupabaseConfigured = (): boolean => {
 };
 
 /**
+ * Get cached image URLs from localStorage
+ */
+const getCachedImageUrls = (): Record<string, string | null> => {
+  try {
+    const cached = localStorage.getItem(CACHE_KEY_IMAGE_URLS);
+    if (!cached) {
+      return {};
+    }
+    return JSON.parse(cached) as Record<string, string | null>;
+  } catch (error) {
+    console.warn('Failed to read image URLs cache:', error);
+    return {};
+  }
+};
+
+/**
+ * Save image URLs to localStorage cache
+ */
+const setCachedImageUrls = (urls: Record<string, string | null>): void => {
+  try {
+    // Merge with existing cache
+    const existing = getCachedImageUrls();
+    const merged = { ...existing, ...urls };
+    
+    // Limit cache size to prevent quota issues (keep only most recent 200)
+    const entries = Object.entries(merged);
+    if (entries.length > 200) {
+      // Keep the most recent 200 entries (assuming newer items are added last)
+      const limited = Object.fromEntries(entries.slice(-200));
+      localStorage.setItem(CACHE_KEY_IMAGE_URLS, JSON.stringify(limited));
+    } else {
+      localStorage.setItem(CACHE_KEY_IMAGE_URLS, JSON.stringify(merged));
+    }
+  } catch (error) {
+    if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+      console.warn('Image URLs cache quota exceeded, clearing...');
+      try {
+        localStorage.removeItem(CACHE_KEY_IMAGE_URLS);
+      } catch (clearError) {
+        // Ignore
+      }
+    } else {
+      console.warn('Failed to write image URLs cache:', error);
+    }
+  }
+};
+
+/**
  * Get cached items from localStorage
  * Returns lightweight items (without imageUrl, imagePrompt, itemCard)
+ * Image URLs are restored from separate cache
  */
 const getCachedItems = (): SavedMagicItem[] | null => {
   try {
@@ -45,12 +95,14 @@ const getCachedItems = (): SavedMagicItem[] | null => {
     }
     
     const items = JSON.parse(cached) as any[];
-    // Restore to SavedMagicItem format with empty strings for missing fields
+    const imageUrls = getCachedImageUrls();
+    
+    // Restore to SavedMagicItem format with image URLs from cache
     return items.map(item => ({
       ...item,
       imagePrompt: '', // Will be fetched on demand
       itemCard: '', // Will be fetched on demand
-      imageUrl: null, // Will be fetched on demand
+      imageUrl: imageUrls[item.id] || null, // Restore from image URLs cache
     })) as SavedMagicItem[];
   } catch (error) {
     console.warn('Failed to read cache:', error);
@@ -190,6 +242,17 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
 
     // Cache the results (will handle quota errors gracefully)
     setCachedItems(items);
+    
+    // Also cache image URLs separately so they persist across navigation
+    const imageUrls: Record<string, string | null> = {};
+    items.forEach(item => {
+      if (item.imageUrl) {
+        imageUrls[item.id] = item.imageUrl;
+      }
+    });
+    if (Object.keys(imageUrls).length > 0) {
+      setCachedImageUrls(imageUrls);
+    }
     
     return items;
   } catch (error) {
@@ -367,13 +430,31 @@ export const getItemImageUrls = async (ids: string[], useThumbnails: boolean = t
   }
 
   try {
-    // Split into chunks of 50 to avoid query size limits
+    // Check cache first for image URLs
+    const cachedUrls = getCachedImageUrls();
+    const cachedResults: Record<string, string | null> = {};
+    const uncachedIds: string[] = [];
+    
+    ids.forEach(id => {
+      if (cachedUrls[id] !== undefined) {
+        cachedResults[id] = cachedUrls[id];
+      } else {
+        uncachedIds.push(id);
+      }
+    });
+    
+    // If all URLs are cached, return immediately
+    if (uncachedIds.length === 0) {
+      return cachedResults;
+    }
+    
+    // Fetch only uncached URLs from database
     const chunks: string[][] = [];
-    for (let i = 0; i < ids.length; i += 50) {
-      chunks.push(ids.slice(i, i + 50));
+    for (let i = 0; i < uncachedIds.length; i += 50) {
+      chunks.push(uncachedIds.slice(i, i + 50));
     }
 
-    const allResults: Record<string, string | null> = {};
+    const fetchedResults: Record<string, string | null> = {};
     const fieldToSelect = useThumbnails ? 'id, thumbnail_url' : 'id, image_url';
     
     // Load chunks in parallel for better performance
@@ -390,17 +471,24 @@ export const getItemImageUrls = async (ids: string[], useThumbnails: boolean = t
 
       (data || []).forEach(item => {
         if (useThumbnails) {
-          allResults[item.id] = item.thumbnail_url || null;
+          fetchedResults[item.id] = item.thumbnail_url || null;
         } else {
-          allResults[item.id] = item.image_url || null;
+          fetchedResults[item.id] = item.image_url || null;
         }
       });
     }));
     
-    return allResults;
+    // Cache the fetched results
+    if (Object.keys(fetchedResults).length > 0) {
+      setCachedImageUrls(fetchedResults);
+    }
+    
+    // Return combined results (cached + fetched)
+    return { ...cachedResults, ...fetchedResults };
   } catch (error) {
     console.error('Failed to get item images:', error);
-    return {};
+    // Return cached results even if fetch failed
+    return getCachedImageUrls();
   }
 };
 
@@ -511,6 +599,17 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
     // Cache the full results for future searches
     const allItems = await fetchItemsFromDatabase();
     setCachedItems(allItems);
+    
+    // Also cache image URLs from search results
+    const imageUrls: Record<string, string | null> = {};
+    items.forEach(item => {
+      if (item.imageUrl) {
+        imageUrls[item.id] = item.imageUrl;
+      }
+    });
+    if (Object.keys(imageUrls).length > 0) {
+      setCachedImageUrls(imageUrls);
+    }
 
     return items;
   } catch (error) {
