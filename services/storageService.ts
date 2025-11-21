@@ -160,7 +160,7 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
   try {
     let query = supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data, thumbnail_url')
+      .select('id, created_at, item_data, thumbnail_url, image_url')
       .order('created_at', { ascending: false });
     
     // Always limit queries to prevent huge payloads
@@ -178,7 +178,7 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
       itemData: item.item_data,
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: item.thumbnail_url || null, // Use thumbnail for list view
+      imageUrl: item.thumbnail_url || item.image_url || null, // Use thumbnail, fallback to full image if no thumbnail
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
@@ -466,10 +466,10 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       return filtered;
     }
 
-    // No cache, fetch from database (without images for speed)
+    // No cache, fetch from database (with thumbnails for speed)
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data')
+      .select('id, created_at, item_data, thumbnail_url, image_url')
       .order('created_at', { ascending: false })
       .limit(500); // Limit to 500 most recent for performance
 
@@ -498,7 +498,7 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       itemData: item.item_data || {},
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: null, // Will be fetched on demand
+      imageUrl: item.thumbnail_url || item.image_url || null, // Use thumbnail, fallback to full image if no thumbnail
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),

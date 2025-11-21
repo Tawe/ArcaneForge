@@ -55,13 +55,21 @@ export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) =
   const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
 
   useEffect(() => {
-    // Load images in background (non-blocking)
-    // Recent items are only 6, so load all at once but don't block
-    if (items.length > 0) {
-      const ids = items.map(item => item.id);
-      // Don't await - let it load in background
-      getItemImageUrls(ids).then(urls => {
-        setImageUrls(urls);
+    // Items already have thumbnails from fetchItemsFromDatabase
+    // Build imageUrls map from items
+    const urls: Record<string, string | null> = {};
+    items.forEach(item => {
+      if (item.imageUrl) {
+        urls[item.id] = item.imageUrl;
+      }
+    });
+    setImageUrls(urls);
+    
+    // Only fetch missing thumbnails
+    const itemsWithoutThumbnails = items.filter(item => !item.imageUrl).map(item => item.id);
+    if (itemsWithoutThumbnails.length > 0) {
+      getItemImageUrls(itemsWithoutThumbnails, true).then(fetchedUrls => {
+        setImageUrls(prev => ({ ...prev, ...fetchedUrls }));
       }).catch(err => {
         console.warn('Failed to load images:', err);
       });
@@ -93,7 +101,9 @@ export const RecentItems: React.FC<RecentItemsProps> = ({ items, onViewItem }) =
             if (!item.itemData) {
               return null;
             }
-            return <RecentItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} imageUrl={imageUrls[item.id] || item.imageUrl} />;
+            // Use thumbnail from imageUrls state if available, otherwise use item.imageUrl (from initial fetch)
+            const thumbnailUrl = imageUrls[item.id] !== undefined ? imageUrls[item.id] : item.imageUrl;
+            return <RecentItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} imageUrl={thumbnailUrl} />;
           })}
         </div>
       </div>

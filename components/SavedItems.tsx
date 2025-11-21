@@ -21,20 +21,14 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       const items = await getSavedItems();
       setSavedItems(items);
       
-      // Load images in background (don't block UI)
-      // Only load first 20 images immediately, rest load as needed
-      const idsToLoad = items.slice(0, 20).map(item => item.id);
-      getItemImageUrls(idsToLoad).then(urls => {
-        setImageUrls(urls);
-        
-        // Load remaining images in background
-        if (items.length > 20) {
-          const remainingIds = items.slice(20).map(item => item.id);
-          getItemImageUrls(remainingIds).then(remainingUrls => {
-            setImageUrls(prev => ({ ...prev, ...remainingUrls }));
-          });
+      // Build imageUrls map from items (they already have thumbnails or full images from fetchItemsFromDatabase)
+      const existingUrls: Record<string, string | null> = {};
+      items.forEach(item => {
+        if (item.imageUrl) {
+          existingUrls[item.id] = item.imageUrl;
         }
       });
+      setImageUrls(existingUrls);
     } catch (error) {
       console.error('Failed to load items:', error);
     } finally {
@@ -48,19 +42,10 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       const items = await searchSavedItems(query);
       setSavedItems(items);
       
-      // Load images in background (don't block UI)
-      // Only load first 20 images immediately
-      const idsToLoad = items.slice(0, 20).map(item => item.id);
-      getItemImageUrls(idsToLoad).then(urls => {
+      // Items from search may not have thumbnails, so fetch them
+      const idsToLoad = items.map(item => item.id);
+      getItemImageUrls(idsToLoad, true).then(urls => {
         setImageUrls(prev => ({ ...prev, ...urls }));
-        
-        // Load remaining images in background
-        if (items.length > 20) {
-          const remainingIds = items.slice(20).map(item => item.id);
-          getItemImageUrls(remainingIds).then(remainingUrls => {
-            setImageUrls(prev => ({ ...prev, ...remainingUrls }));
-          });
-        }
       });
     } catch (error) {
       console.error('Failed to search items:', error);
@@ -280,7 +265,9 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
             if (!item.itemData) {
               return null; // Skip items with missing data
             }
-            return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} imageUrl={imageUrls[item.id] || item.imageUrl} />;
+            // Use thumbnail from imageUrls state if available, otherwise use item.imageUrl (from initial fetch)
+            const thumbnailUrl = imageUrls[item.id] !== undefined ? imageUrls[item.id] : item.imageUrl;
+            return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} imageUrl={thumbnailUrl} />;
           })}
         </div>
       )}
