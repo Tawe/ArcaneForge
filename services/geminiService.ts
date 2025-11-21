@@ -71,7 +71,7 @@ export const generateMagicItemText = async (
       },
       imagePrompt: {
         type: Type.STRING,
-        description: `A concise, concrete description for image generation. Describe the ${settings.type} itself (not a painting of it). The visual style "${settings.style}" will be applied automatically - do not mention the style in the prompt. Focus on the item's appearance, materials, magical effects visible, and composition. No text in image.`,
+        description: `A concise, concrete description for image generation. Describe the ${settings.type} itself (not a painting of it). The visual style "${settings.style}" will be applied automatically - do not mention the style in the prompt. Focus on the item's appearance, materials, magical effects visible, and composition. CRITICAL: The image must contain NO TEXT, NO WORDS, NO LETTERS, NO TITLES, and NO WRITTEN LABELS of any kind. Only the visual depiction of the item itself.`,
       },
       itemCard: {
         type: Type.STRING,
@@ -115,7 +115,8 @@ export const generateMagicItemImage = async (
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   try {
     // Combine the image prompt with the style instruction
-    const fullPrompt = `${imagePrompt}\n\nStyle: Render this in the style of ${style}.`;
+    // Explicitly state no text should appear in the image
+    const fullPrompt = `${imagePrompt}\n\nStyle: Render this in the style of ${style}.\n\nIMPORTANT: The image must contain absolutely NO TEXT, NO WORDS, NO LETTERS, NO TITLES, NO AUTHOR NAMES, and NO WRITTEN LABELS of any kind. Only the visual depiction of the magic item itself.`;
     
     // Use gemini-2.5-flash-image for reliable image generation
     // Using generateContent because this is a multimodal model, not an Imagen model
