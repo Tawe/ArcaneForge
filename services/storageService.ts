@@ -158,13 +158,17 @@ export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> =
  */
 const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]> => {
   try {
+    // CRITICAL: Only fetch thumbnail_url, NOT image_url
+    // image_url contains full base64 images which are HUGE (can be 1-2MB each)
+    // thumbnail_url contains compressed thumbnails (much smaller, ~50-100KB each)
+    // item_data is JSONB with text fields only (relatively small)
     let query = supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data, thumbnail_url, image_url')
+      .select('id, created_at, item_data, thumbnail_url') // Removed image_url - this is the main culprit!
       .order('created_at', { ascending: false });
     
     // Always limit queries to prevent huge payloads
-    const queryLimit = limit || 500;
+    const queryLimit = limit || 100; // Reduced default from 500 to 100
     query = query.limit(queryLimit);
 
     const { data, error } = await query;
@@ -175,10 +179,10 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
     }
 
     const items = (data || []).map((item: any) => ({
-      itemData: item.item_data,
+      itemData: item.item_data || {},
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: item.thumbnail_url || item.image_url || null, // Use thumbnail, fallback to full image if no thumbnail
+      imageUrl: item.thumbnail_url || null, // Only use thumbnail (much smaller than full image)
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
@@ -466,12 +470,12 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       return filtered;
     }
 
-    // No cache, fetch from database (with thumbnails for speed)
+    // No cache, fetch from database (without image_url for performance)
     const { data, error } = await supabase
       .from(TABLE_NAME)
-      .select('id, created_at, item_data, thumbnail_url, image_url')
+      .select('id, created_at, item_data, thumbnail_url') // Removed image_url - too large!
       .order('created_at', { ascending: false })
-      .limit(500); // Limit to 500 most recent for performance
+      .limit(100); // Limit to 100 results for performance
 
     if (error) {
       console.error('Failed to search items:', error);
@@ -498,7 +502,7 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       itemData: item.item_data || {},
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
-      imageUrl: item.thumbnail_url || item.image_url || null, // Use thumbnail, fallback to full image if no thumbnail
+      imageUrl: item.thumbnail_url || null, // Only use thumbnail (much smaller)
       id: item.id,
       created_at: item.created_at,
       savedAt: new Date(item.created_at).getTime(),
