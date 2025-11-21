@@ -1,12 +1,12 @@
 /**
  * Generate a thumbnail from a base64 image
  * Creates a smaller, compressed version for faster loading
- * Optimized for list views: smaller size and balanced quality
+ * Optimized for list views with good visual quality
  */
 export const generateThumbnail = async (
   base64Image: string,
-  maxWidth: number = 150, // Reduced from 200 to 150 for smaller file size
-  maxHeight: number = 150, // Reduced from 200 to 150 for smaller file size
+  maxWidth: number = 340, // Increased for better quality in list views
+  maxHeight: number = 340, // Square aspect ratio (close to 340x345 requested)
   quality: number = 0.6 // Balanced quality - good visual quality while keeping file size reasonable
 ): Promise<string> => {
   return new Promise((resolve, reject) => {

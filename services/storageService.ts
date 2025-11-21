@@ -296,12 +296,12 @@ export const saveItem = async (item: MagicItemResult): Promise<SavedMagicItem | 
 
   try {
     // Generate thumbnail if we have an image
-    // Using smaller dimensions (150x150) and balanced quality (0.6) for good visual quality
-    // This keeps file size reasonable while maintaining good image quality in list views
+    // Using 340x340 dimensions and balanced quality (0.6) for good visual quality
+    // Larger thumbnails provide better detail in list views while still being manageable
     let thumbnailUrl: string | null = null;
     if (item.imageUrl) {
       try {
-        thumbnailUrl = await generateThumbnail(item.imageUrl, 150, 150, 0.6);
+        thumbnailUrl = await generateThumbnail(item.imageUrl, 340, 340, 0.6);
       } catch (thumbError) {
         console.warn('Failed to generate thumbnail, saving without it:', thumbError);
         // Continue without thumbnail
