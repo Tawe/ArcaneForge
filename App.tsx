@@ -116,9 +116,6 @@ const App: React.FC = () => {
               <h1 className="text-2xl font-fantasy font-bold tracking-[0.15em] text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-500 to-amber-700 drop-shadow-sm">
                 ARCANE FORGE
               </h1>
-              <p className="text-[10px] text-indigo-400/60 font-mono tracking-widest uppercase">
-                Artificer's Compendium v1.0
-              </p>
             </div>
           </div>
           <nav className="flex items-center gap-4">
