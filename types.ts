@@ -25,6 +25,7 @@ export interface ItemData {
   rarity: string;
   style: string;
   theme: string;
+  powerBand?: string; // Resonance Level (optional for backward compatibility)
   description: string;
   mechanics: ItemMechanics;
   curse: string;

@@ -57,6 +57,7 @@ export const generateMagicItemText = async (
           rarity: { type: Type.STRING },
           style: { type: Type.STRING },
           theme: { type: Type.STRING },
+          powerBand: { type: Type.STRING, description: `The power band/resonance level: ${settings.powerBand}` },
           description: { type: Type.STRING },
           mechanics: {
             type: Type.OBJECT,
@@ -106,7 +107,12 @@ export const generateMagicItemText = async (
   }
 
   try {
-    return JSON.parse(text) as GeneratedContent;
+    const content = JSON.parse(text) as GeneratedContent;
+    // Ensure powerBand is set (fallback if AI doesn't include it)
+    if (!content.itemData.powerBand) {
+      content.itemData.powerBand = settings.powerBand;
+    }
+    return content;
   } catch (error) {
     console.error("Failed to parse Gemini response", error);
     throw new Error("Invalid JSON response from generator.");

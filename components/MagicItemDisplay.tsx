@@ -161,6 +161,11 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
                 <p className="text-slate-400 font-serif italic text-lg">
                   {itemData.rarity} {itemData.type}
                 </p>
+                {itemData.powerBand && (
+                  <p className="text-amber-500/80 font-fantasy text-xs uppercase tracking-widest mt-1">
+                    Resonance: {itemData.powerBand}
+                  </p>
+                )}
              </div>
         </div>
 
@@ -206,6 +211,11 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
                    <p className="text-lg italic text-[#4a4a4a] font-semibold">
                      {itemData.rarity} {itemData.type}
                    </p>
+                   {itemData.powerBand && (
+                      <p className="text-sm font-bold text-[#7a4a2a] uppercase tracking-widest mt-1">
+                        Resonance Level: {itemData.powerBand}
+                      </p>
+                   )}
                    {itemData.mechanics.attunement && (
                       <p className="text-sm font-bold text-[#58180d] uppercase tracking-widest mt-1">
                         (Requires Attunement)
