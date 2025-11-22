@@ -162,9 +162,21 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
                   {itemData.rarity} {itemData.type}
                 </p>
                 {itemData.powerBand && (
-                  <p className="text-amber-500/80 font-fantasy text-xs uppercase tracking-widest mt-1">
-                    Resonance: {itemData.powerBand}
-                  </p>
+                  <div className="relative group mt-1">
+                    <p className="text-amber-500/80 font-fantasy text-xs uppercase tracking-widest cursor-help">
+                      Resonance: {itemData.powerBand}
+                    </p>
+                    {/* Tooltip */}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#0a0a0a] border border-amber-900/50 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                      <p className="text-xs text-amber-400 font-serif">
+                        The level of magic your campaign world is
+                      </p>
+                      {/* Tooltip arrow */}
+                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-px">
+                        <div className="border-4 border-transparent border-t-amber-900/50"></div>
+                      </div>
+                    </div>
+                  </div>
                 )}
              </div>
         </div>
@@ -212,9 +224,21 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
                      {itemData.rarity} {itemData.type}
                    </p>
                    {itemData.powerBand && (
-                      <p className="text-sm font-bold text-[#7a4a2a] uppercase tracking-widest mt-1">
-                        Resonance Level: {itemData.powerBand}
-                      </p>
+                      <div className="relative group mt-1">
+                        <p className="text-sm font-bold text-[#7a4a2a] uppercase tracking-widest cursor-help">
+                          Resonance Level: {itemData.powerBand}
+                        </p>
+                        {/* Tooltip */}
+                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#0a0a0a] border border-amber-900/50 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                          <p className="text-xs text-amber-400 font-serif">
+                            The level of magic your campaign world is
+                          </p>
+                          {/* Tooltip arrow */}
+                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-px">
+                            <div className="border-4 border-transparent border-t-amber-900/50"></div>
+                          </div>
+                        </div>
+                      </div>
                    )}
                    {itemData.mechanics.attunement && (
                       <p className="text-sm font-bold text-[#58180d] uppercase tracking-widest mt-1">
