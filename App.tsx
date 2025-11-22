@@ -249,6 +249,23 @@ const App: React.FC = () => {
           </>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-[#1f1f23] bg-[#050505]/80 backdrop-blur-md py-6 mt-auto">
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <p className="text-sm text-slate-500">
+            Created by{' '}
+            <a 
+              href="https://johnmunn.tech" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-amber-500 hover:text-amber-400 transition-colors underline decoration-amber-600/50 hover:decoration-amber-500"
+            >
+              johnmunn.tech
+            </a>
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };

@@ -108,3 +108,7 @@ All generated items are automatically saved to Supabase. To set up the database:
 ## License
 
 Private project
+
+## Author
+
+Created by [johnmunn.tech](https://johnmunn.tech)
