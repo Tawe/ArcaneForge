@@ -251,9 +251,14 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
           <h3 className={`text-lg font-fantasy font-bold mb-1 ${config.color} line-clamp-1`}>
             {item.itemData.name}
           </h3>
-          <p className="text-xs text-slate-500 font-serif italic mb-2">
+          <p className="text-xs text-slate-500 font-serif italic mb-1">
             {item.itemData.type} • {item.itemData.rarity}
           </p>
+          {item.itemData.powerBand && (
+            <p className="text-xs text-amber-500/80 font-fantasy uppercase tracking-wider mb-2">
+              Resonance: {item.itemData.powerBand}
+            </p>
+          )}
           <p className="text-sm text-slate-400 line-clamp-2 mb-3 font-serif">
             {item.itemData.description}
           </p>
