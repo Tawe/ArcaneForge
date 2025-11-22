@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { SavedMagicItem } from '../services/storageService';
 import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls, getSavedItemsCount } from '../services/storageService';
 import { MagicItemResult } from '../types';
@@ -18,8 +18,6 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const isInitialMount = useRef(true);
-  const skipPageLoad = useRef(false);
 
   const loadItems = async (page: number = 1) => {
     setIsLoading(true);
@@ -98,12 +96,10 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   useEffect(() => {
     loadItems(1);
     setCurrentPage(1);
-    isInitialMount.current = false;
   }, []);
 
   useEffect(() => {
     // Reset to page 1 when search changes
-    skipPageLoad.current = true; // Prevent the currentPage effect from running
     setCurrentPage(1);
     const timeoutId = setTimeout(() => {
       if (searchQuery.trim()) {
@@ -111,7 +107,6 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       } else {
         loadItems(1);
       }
-      skipPageLoad.current = false;
     }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
@@ -119,7 +114,6 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
 
   useEffect(() => {
     // Reset to page 1 when rarity filter changes
-    skipPageLoad.current = true; // Prevent the currentPage effect from running
     setCurrentPage(1);
     // Load items for page 1 with current filter
     if (searchQuery.trim()) {
@@ -127,23 +121,11 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     } else {
       loadItems(1);
     }
-    skipPageLoad.current = false;
   }, [filterRarity]);
 
-  // Load page when currentPage changes (user navigation)
-  useEffect(() => {
-    // Skip on initial mount or when search/filter is changing
-    if (isInitialMount.current || skipPageLoad.current) {
-      return;
-    }
-    
-    // Load the page when user navigates (including back to page 1)
-    if (searchQuery.trim()) {
-      loadSearchResults(searchQuery, currentPage);
-    } else {
-      loadItems(currentPage);
-    }
-  }, [currentPage]);
+  // Note: Page loading is now handled directly in handlePageChange
+  // This effect only handles cases where currentPage changes outside of user navigation
+  // (e.g., when search/filter resets to page 1, which already loads data)
 
   const filteredItems = useMemo(() => {
     // Apply rarity filter to current page items
@@ -179,8 +161,14 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     }
   };
 
-  const handlePageChange = (newPage: number) => {
+  const handlePageChange = async (newPage: number) => {
     setCurrentPage(newPage);
+    // Load data directly when user navigates
+    if (searchQuery.trim()) {
+      await loadSearchResults(searchQuery, newPage);
+    } else {
+      await loadItems(newPage);
+    }
     // Scroll to top when page changes
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
