@@ -196,33 +196,60 @@ export const invalidateCache = (): void => {
 };
 
 /**
- * Get all saved magic items from Supabase
+ * Get total count of saved items
+ */
+export const getSavedItemsCount = async (): Promise<number> => {
+  if (!isSupabaseConfigured()) {
+    return 0;
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Failed to get items count:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Failed to get items count:', error);
+    return 0;
+  }
+};
+
+/**
+ * Get saved magic items from Supabase with pagination
  * Optimized to only fetch necessary fields for list display
  * Uses localStorage cache for instant loading
  */
-export const getSavedItems = async (limit?: number): Promise<SavedMagicItem[]> => {
+export const getSavedItems = async (limit?: number, offset?: number): Promise<SavedMagicItem[]> => {
   // Check if Supabase is configured
   if (!isSupabaseConfigured()) {
     return [];
   }
 
-  // Try to get from cache first
-  const cached = getCachedItems();
-  if (cached) {
-    // Return cached data immediately, but also refresh in background
-    refreshItemsInBackground(limit);
-    return limit ? cached.slice(0, limit) : cached;
+  // Try to get from cache first (only if no offset - cache doesn't support pagination)
+  if (!offset) {
+    const cached = getCachedItems();
+    if (cached) {
+      // Return cached data immediately, but also refresh in background
+      refreshItemsInBackground(limit);
+      return limit ? cached.slice(0, limit) : cached;
+    }
   }
 
-  // No cache, fetch from database
-  return await fetchItemsFromDatabase(limit);
+  // No cache or pagination requested, fetch from database
+  return await fetchItemsFromDatabase(limit, offset);
 };
 
 /**
  * Fetch items from database (internal function)
  * Includes thumbnail_url for fast progressive loading
  */
-const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]> => {
+const fetchItemsFromDatabase = async (limit?: number, offset?: number): Promise<SavedMagicItem[]> => {
   try {
     // CRITICAL: Only fetch thumbnail_url, NOT image_url
     // image_url contains full base64 images which are HUGE (can be 1-2MB each)
@@ -233,9 +260,15 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
       .select('id, created_at, item_data, thumbnail_url') // Removed image_url - this is the main culprit!
       .order('created_at', { ascending: false });
     
-    // Always limit queries to prevent huge payloads
-    const queryLimit = limit || 100; // Reduced default from 500 to 100
-    query = query.limit(queryLimit);
+    // Apply pagination
+    if (offset !== undefined) {
+      query = query.range(offset, offset + (limit || 20) - 1);
+    } else if (limit) {
+      query = query.limit(limit);
+    } else {
+      // Default limit to prevent huge payloads
+      query = query.limit(100);
+    }
 
     const { data, error } = await query;
 
@@ -277,9 +310,9 @@ const fetchItemsFromDatabase = async (limit?: number): Promise<SavedMagicItem[]>
 /**
  * Refresh items in background (non-blocking)
  */
-const refreshItemsInBackground = async (limit?: number): Promise<void> => {
+const refreshItemsInBackground = async (limit?: number, offset?: number): Promise<void> => {
   // Don't await - let it run in background
-  fetchItemsFromDatabase(limit).catch(err => {
+  fetchItemsFromDatabase(limit, offset).catch(err => {
     console.warn('Background refresh failed:', err);
   });
 };
@@ -515,51 +548,64 @@ export const getItemFullImageUrl = async (id: string): Promise<string | null> =>
 };
 
 /**
- * Search saved items by name, type, rarity, or theme
+ * Search saved items by name, type, rarity, or theme with pagination
  * Uses cache when available, falls back to database
  */
-export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]> => {
+export const searchSavedItems = async (query: string, limit?: number, offset?: number): Promise<SavedMagicItem[]> => {
   if (!isSupabaseConfigured()) {
     return [];
   }
 
   try {
     if (!query.trim()) {
-      return await getSavedItems();
+      return await getSavedItems(limit, offset);
     }
 
-    // Try cache first
-    const cached = getCachedItems();
-    if (cached && cached.length > 0) {
-      // Search in cached data (fast)
-      const lowerQuery = query.toLowerCase();
-      const filtered = cached.filter((item) => {
-        const itemData = item.itemData || {};
-        const name = itemData.name?.toLowerCase() || '';
-        const type = itemData.type?.toLowerCase() || '';
-        const rarity = itemData.rarity?.toLowerCase() || '';
-        const theme = itemData.theme?.toLowerCase() || '';
-        const description = itemData.description?.toLowerCase() || '';
+    // Try cache first (only if no offset - cache doesn't support pagination)
+    if (!offset) {
+      const cached = getCachedItems();
+      if (cached && cached.length > 0) {
+        // Search in cached data (fast)
+        const lowerQuery = query.toLowerCase();
+        const filtered = cached.filter((item) => {
+          const itemData = item.itemData || {};
+          const name = itemData.name?.toLowerCase() || '';
+          const type = itemData.type?.toLowerCase() || '';
+          const rarity = itemData.rarity?.toLowerCase() || '';
+          const theme = itemData.theme?.toLowerCase() || '';
+          const description = itemData.description?.toLowerCase() || '';
 
-        return name.includes(lowerQuery) ||
-               type.includes(lowerQuery) ||
-               rarity.includes(lowerQuery) ||
-               theme.includes(lowerQuery) ||
-               description.includes(lowerQuery);
-      });
+          return name.includes(lowerQuery) ||
+                 type.includes(lowerQuery) ||
+                 rarity.includes(lowerQuery) ||
+                 theme.includes(lowerQuery) ||
+                 description.includes(lowerQuery);
+        });
 
-      // Refresh in background
-      refreshItemsInBackground();
-      
-      return filtered;
+        // Apply pagination to cached results
+        const paginated = limit ? filtered.slice(offset || 0, (offset || 0) + limit) : filtered;
+        
+        // Refresh in background
+        refreshItemsInBackground();
+        
+        return paginated;
+      }
     }
 
-    // No cache, fetch from database (without image_url for performance)
-    const { data, error } = await supabase
+    // No cache or pagination requested, fetch from database (without image_url for performance)
+    // Note: Supabase doesn't support full-text search on JSONB easily, so we fetch and filter
+    // For better performance with large datasets, consider using Postgres full-text search
+    let dbQuery = supabase
       .from(TABLE_NAME)
       .select('id, created_at, item_data, thumbnail_url') // Removed image_url - too large!
-      .order('created_at', { ascending: false })
-      .limit(100); // Limit to 100 results for performance
+      .order('created_at', { ascending: false });
+
+    // Apply pagination - but we'll filter after, so fetch more than needed
+    const fetchLimit = limit ? (limit * 3) : 300; // Fetch 3x to account for filtering
+    const fetchOffset = offset || 0;
+    dbQuery = dbQuery.range(fetchOffset, fetchOffset + fetchLimit - 1);
+
+    const { data, error } = await dbQuery;
 
     if (error) {
       console.error('Failed to search items:', error);
@@ -582,7 +628,10 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
              description.includes(lowerQuery);
     });
 
-    const items = filtered.map((item: any) => ({
+    // Apply pagination to filtered results
+    const paginated = limit ? filtered.slice(0, limit) : filtered;
+
+    const items = paginated.map((item: any) => ({
       itemData: item.item_data || {},
       imagePrompt: '', // Not needed for list view
       itemCard: '', // Not needed for list view
@@ -592,9 +641,11 @@ export const searchSavedItems = async (query: string): Promise<SavedMagicItem[]>
       savedAt: new Date(item.created_at).getTime(),
     })) as SavedMagicItem[];
 
-    // Cache the full results for future searches
-    const allItems = await fetchItemsFromDatabase();
-    setCachedItems(allItems);
+    // Cache the full results for future searches (only if not paginated)
+    if (!offset) {
+      const allItems = await fetchItemsFromDatabase();
+      setCachedItems(allItems);
+    }
     
     // Cache flags indicating which items have thumbnails (not the actual base64 strings)
     const imageUrlFlags: Record<string, string | null> = {};

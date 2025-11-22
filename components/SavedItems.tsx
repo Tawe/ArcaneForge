@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { SavedMagicItem } from '../services/storageService';
-import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls } from '../services/storageService';
+import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls, getSavedItemsCount } from '../services/storageService';
 import { MagicItemResult } from '../types';
 
 interface SavedItemsProps {
@@ -8,18 +8,29 @@ interface SavedItemsProps {
   onBack: () => void;
 }
 
+const ITEMS_PER_PAGE = 12;
+
 export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) => {
   const [savedItems, setSavedItems] = useState<SavedMagicItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRarity, setFilterRarity] = useState<string>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
-  const loadItems = async () => {
+  const loadItems = async (page: number = 1) => {
     setIsLoading(true);
     try {
-      const items = await getSavedItems();
+      const offset = (page - 1) * ITEMS_PER_PAGE;
+      const items = await getSavedItems(ITEMS_PER_PAGE, offset);
       setSavedItems(items);
+      
+      // Get total count (only on first page load or when not searching)
+      if (page === 1 && !searchQuery.trim()) {
+        const count = await getSavedItemsCount();
+        setTotalCount(count);
+      }
       
       // Build imageUrls map from items (they already have thumbnails from fetchItemsFromDatabase)
       const existingUrls: Record<string, string | null> = {};
@@ -32,7 +43,7 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
           itemsWithoutThumbnails.push(item.id);
         }
       });
-      setImageUrls(existingUrls);
+      setImageUrls(prev => ({ ...prev, ...existingUrls }));
       
       // For items without thumbnails, fetch full images as fallback (lazy load)
       if (itemsWithoutThumbnails.length > 0) {
@@ -54,11 +65,21 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     }
   };
 
-  const loadSearchResults = async (query: string) => {
+  const loadSearchResults = async (query: string, page: number = 1) => {
     setIsLoading(true);
     try {
-      const items = await searchSavedItems(query);
+      const offset = (page - 1) * ITEMS_PER_PAGE;
+      const items = await searchSavedItems(query, ITEMS_PER_PAGE, offset);
       setSavedItems(items);
+      
+      // For search, we don't have an easy way to get total count without fetching all
+      // So we'll estimate based on whether we got a full page
+      if (items.length < ITEMS_PER_PAGE) {
+        setTotalCount((page - 1) * ITEMS_PER_PAGE + items.length);
+      } else {
+        // Might be more, but we'll update when user navigates
+        setTotalCount(page * ITEMS_PER_PAGE);
+      }
       
       // Items from search may not have thumbnails, so fetch them
       const idsToLoad = items.map(item => item.id);
@@ -73,39 +94,78 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   };
 
   useEffect(() => {
-    loadItems();
+    loadItems(1);
+    setCurrentPage(1);
   }, []);
 
   useEffect(() => {
+    // Reset to page 1 when search changes
+    setCurrentPage(1);
     const timeoutId = setTimeout(() => {
       if (searchQuery.trim()) {
-        loadSearchResults(searchQuery);
+        loadSearchResults(searchQuery, 1);
       } else {
-        loadItems();
+        loadItems(1);
       }
     }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  useEffect(() => {
+    // Reset to page 1 when rarity filter changes
+    setCurrentPage(1);
+  }, [filterRarity]);
+
+  // Load page when currentPage changes (but not on initial mount or search change)
+  useEffect(() => {
+    if (currentPage > 1) {
+      if (searchQuery.trim()) {
+        loadSearchResults(searchQuery, currentPage);
+      } else {
+        loadItems(currentPage);
+      }
+    }
+  }, [currentPage]);
+
   const filteredItems = useMemo(() => {
+    // Apply rarity filter to current page items
     if (filterRarity === 'all') {
       return savedItems;
     }
     return savedItems.filter(item => item.itemData.rarity === filterRarity);
   }, [savedItems, filterRarity]);
 
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+  const hasNextPage = currentPage < totalPages;
+  const hasPrevPage = currentPage > 1;
+
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm('Remove this item from your collection?')) {
       try {
         await removeItem(id);
-        await loadItems();
+        // Reload current page
+        if (searchQuery.trim()) {
+          await loadSearchResults(searchQuery, currentPage);
+        } else {
+          await loadItems(currentPage);
+        }
+        // Update total count
+        const count = await getSavedItemsCount();
+        setTotalCount(count);
       } catch (error) {
         console.error('Failed to delete item:', error);
         alert('Failed to remove item. Please try again.');
       }
     }
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const rarityConfig: Record<string, { color: string; border: string }> = {
@@ -211,7 +271,13 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
           ARCHIVED ARTIFACTS
         </h2>
         <p className="text-sm text-slate-500 font-mono">
-          {filteredItems.length} {filteredItems.length === 1 ? 'item' : 'items'} in collection
+          {totalCount > 0 ? (
+            <>
+              Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1}-{Math.min(currentPage * ITEMS_PER_PAGE, totalCount)} of {totalCount} {totalCount === 1 ? 'item' : 'items'}
+            </>
+          ) : (
+            '0 items in collection'
+          )}
         </p>
       </div>
 
@@ -278,16 +344,78 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredItems.map((item) => {
-            if (!item.itemData) {
-              return null; // Skip items with missing data
-            }
-            // Use thumbnail from imageUrls state if available, otherwise use item.imageUrl (from initial fetch)
-            const thumbnailUrl = imageUrls[item.id] !== undefined ? imageUrls[item.id] : item.imageUrl;
-            return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} imageUrl={thumbnailUrl} />;
-          })}
-        </div>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredItems.map((item) => {
+              if (!item.itemData) {
+                return null; // Skip items with missing data
+              }
+              // Use thumbnail from imageUrls state if available, otherwise use item.imageUrl (from initial fetch)
+              const thumbnailUrl = imageUrls[item.id] !== undefined ? imageUrls[item.id] : item.imageUrl;
+              return <ItemCard key={item.id} item={item} config={rarityConfig[item.itemData.rarity] || rarityConfig['Common']} onViewItem={onViewItem} onDelete={handleDelete} imageUrl={thumbnailUrl} />;
+            })}
+          </div>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-2">
+              <button
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={!hasPrevPage || isLoading}
+                className={`px-4 py-2 bg-[#0f0f13] border border-[#2a2a35] rounded text-sm font-fantasy uppercase tracking-wider transition-colors ${
+                  hasPrevPage && !isLoading
+                    ? 'text-amber-400 hover:border-amber-600 hover:bg-amber-950/20 cursor-pointer'
+                    : 'text-slate-600 cursor-not-allowed opacity-50'
+                }`}
+              >
+                ← Prev
+              </button>
+
+              {/* Page Numbers */}
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (currentPage <= 3) {
+                    pageNum = i + 1;
+                  } else if (currentPage >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = currentPage - 2 + i;
+                  }
+
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => handlePageChange(pageNum)}
+                      disabled={isLoading}
+                      className={`w-10 h-10 rounded text-sm font-fantasy transition-colors ${
+                        currentPage === pageNum
+                          ? 'bg-amber-950/30 border border-amber-600 text-amber-400'
+                          : 'bg-[#0f0f13] border border-[#2a2a35] text-slate-400 hover:border-amber-600/50 hover:text-amber-400'
+                      } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={!hasNextPage || isLoading}
+                className={`px-4 py-2 bg-[#0f0f13] border border-[#2a2a35] rounded text-sm font-fantasy uppercase tracking-wider transition-colors ${
+                  hasNextPage && !isLoading
+                    ? 'text-amber-400 hover:border-amber-600 hover:bg-amber-950/20 cursor-pointer'
+                    : 'text-slate-600 cursor-not-allowed opacity-50'
+                }`}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
