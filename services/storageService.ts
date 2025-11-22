@@ -231,8 +231,9 @@ export const getSavedItems = async (limit?: number, offset?: number): Promise<Sa
     return [];
   }
 
-  // Try to get from cache first (only if no offset - cache doesn't support pagination)
-  if (!offset) {
+  // Only use cache if offset is undefined (not explicitly set to 0)
+  // When offset is 0, we want fresh data from the database for pagination
+  if (offset === undefined) {
     const cached = getCachedItems();
     if (cached) {
       // Return cached data immediately, but also refresh in background
@@ -241,7 +242,7 @@ export const getSavedItems = async (limit?: number, offset?: number): Promise<Sa
     }
   }
 
-  // No cache or pagination requested, fetch from database
+  // Pagination requested or no cache, fetch from database
   return await fetchItemsFromDatabase(limit, offset);
 };
 
@@ -561,8 +562,9 @@ export const searchSavedItems = async (query: string, limit?: number, offset?: n
       return await getSavedItems(limit, offset);
     }
 
-    // Try cache first (only if no offset - cache doesn't support pagination)
-    if (!offset) {
+    // Only use cache if offset is undefined (not explicitly set to 0)
+    // When offset is 0, we want fresh data from the database for pagination
+    if (offset === undefined) {
       const cached = getCachedItems();
       if (cached && cached.length > 0) {
         // Search in cached data (fast)
@@ -583,7 +585,7 @@ export const searchSavedItems = async (query: string, limit?: number, offset?: n
         });
 
         // Apply pagination to cached results
-        const paginated = limit ? filtered.slice(offset || 0, (offset || 0) + limit) : filtered;
+        const paginated = limit ? filtered.slice(0, limit) : filtered;
         
         // Refresh in background
         refreshItemsInBackground();
@@ -642,7 +644,7 @@ export const searchSavedItems = async (query: string, limit?: number, offset?: n
     })) as SavedMagicItem[];
 
     // Cache the full results for future searches (only if not paginated)
-    if (!offset) {
+    if (offset === undefined) {
       const allItems = await fetchItemsFromDatabase();
       setCachedItems(allItems);
     }
