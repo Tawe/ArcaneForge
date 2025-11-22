@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { SavedMagicItem } from '../services/storageService';
 import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls, getSavedItemsCount } from '../services/storageService';
 import { MagicItemResult } from '../types';
@@ -18,6 +18,8 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   const [imageUrls, setImageUrls] = useState<Record<string, string | null>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  const isInitialMount = useRef(true);
+  const skipPageLoad = useRef(false);
 
   const loadItems = async (page: number = 1) => {
     setIsLoading(true);
@@ -96,10 +98,12 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
   useEffect(() => {
     loadItems(1);
     setCurrentPage(1);
+    isInitialMount.current = false;
   }, []);
 
   useEffect(() => {
     // Reset to page 1 when search changes
+    skipPageLoad.current = true; // Prevent the currentPage effect from running
     setCurrentPage(1);
     const timeoutId = setTimeout(() => {
       if (searchQuery.trim()) {
@@ -107,6 +111,7 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
       } else {
         loadItems(1);
       }
+      skipPageLoad.current = false;
     }, 300); // Debounce search
 
     return () => clearTimeout(timeoutId);
@@ -114,17 +119,29 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
 
   useEffect(() => {
     // Reset to page 1 when rarity filter changes
+    skipPageLoad.current = true; // Prevent the currentPage effect from running
     setCurrentPage(1);
+    // Load items for page 1 with current filter
+    if (searchQuery.trim()) {
+      loadSearchResults(searchQuery, 1);
+    } else {
+      loadItems(1);
+    }
+    skipPageLoad.current = false;
   }, [filterRarity]);
 
-  // Load page when currentPage changes (but not on initial mount or search change)
+  // Load page when currentPage changes (user navigation)
   useEffect(() => {
-    if (currentPage > 1) {
-      if (searchQuery.trim()) {
-        loadSearchResults(searchQuery, currentPage);
-      } else {
-        loadItems(currentPage);
-      }
+    // Skip on initial mount or when search/filter is changing
+    if (isInitialMount.current || skipPageLoad.current) {
+      return;
+    }
+    
+    // Load the page when user navigates (including back to page 1)
+    if (searchQuery.trim()) {
+      loadSearchResults(searchQuery, currentPage);
+    } else {
+      loadItems(currentPage);
     }
   }, [currentPage]);
 
