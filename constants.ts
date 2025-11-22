@@ -34,6 +34,7 @@ export const ITEM_TYPES = [
 ];
 
 export const THEMES = [
+  'None',
   'Celestial',
   'Infernal',
   'Feywild',

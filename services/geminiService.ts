@@ -20,7 +20,7 @@ export const generateMagicItemText = async (
     Inputs provided:
     - Rarity: ${settings.rarity}
     - Item Type: ${settings.type} (This is the actual type of magic item - weapon, armor, wondrous item, etc. NOT a visual style)
-    - Theme: ${settings.theme}
+    - Theme: ${settings.theme === 'None' ? 'No specific theme - create a versatile item without thematic constraints' : settings.theme}
     - Visual Art Style: ${settings.style} (This is ONLY for the image generation visual style - oil painting, watercolor, etc. It does NOT affect the item type or description)
     - Power Band: ${settings.powerBand}
     - Include Curse: ${settings.includeCurse}
