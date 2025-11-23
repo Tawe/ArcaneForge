@@ -87,7 +87,24 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
 
           {/* Column 5: Power Band (4 columns wide total) */}
           <div className="lg:col-span-4">
-            <label className={labelClass}>Resonance Level</label>
+            <div className="flex items-center gap-2 mb-1">
+              <label className={labelClass}>Resonance Level</label>
+              <div className="relative group">
+                <div className="w-3.5 h-3.5 rounded-full border border-amber-600/50 bg-amber-950/30 flex items-center justify-center cursor-help hover:bg-amber-950/50 transition-colors">
+                  <span className="text-[8px] text-amber-500 font-bold leading-none">i</span>
+                </div>
+                {/* Tooltip */}
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#0a0a0a] border border-amber-900/50 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
+                  <p className="text-xs text-amber-400 font-serif">
+                    Adjusts item power to match your campaign's magic level.
+                  </p>
+                  {/* Tooltip arrow */}
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-px">
+                    <div className="border-4 border-transparent border-t-amber-900/50"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div className="flex bg-[#050505] border border-[#2a2a35] p-1 rounded-sm h-[38px]">
               {POWER_BANDS.map((pb) => (
                 <button
