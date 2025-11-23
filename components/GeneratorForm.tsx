@@ -87,10 +87,10 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
 
           {/* Column 5: Power Band (4 columns wide total) */}
           <div className="lg:col-span-4">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-1.5 mb-1">
               <label className={labelClass}>Resonance Level</label>
-              <div className="relative group">
-                <div className="w-3.5 h-3.5 rounded-full border border-amber-600/50 bg-amber-950/30 flex items-center justify-center cursor-help hover:bg-amber-950/50 transition-colors">
+              <div className="relative group flex items-center">
+                <div className="w-3.5 h-3.5 rounded-full border border-amber-600/50 bg-amber-950/30 flex items-center justify-center cursor-help hover:bg-amber-950/50 transition-colors mt-0.5">
                   <span className="text-[8px] text-amber-500 font-bold leading-none">i</span>
                 </div>
                 {/* Tooltip */}
