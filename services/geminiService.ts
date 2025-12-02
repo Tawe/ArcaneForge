@@ -84,7 +84,7 @@ export const generateMagicItemText = async (
       },
       itemCard: {
         type: Type.STRING,
-        description: "A player-facing, well-formatted text description of the item including name, rarity, flavor, mechanics, and price.",
+        description: "A player-facing, well-formatted text description of the item. MUST include: name, rarity, type, flavor description, ALL effects from the mechanics.effects array (formatted as a clear list), activation method, scaling information, and price. Format effects as bullet points or numbered list for clarity.",
       },
     },
     required: ["itemData", "imagePrompt", "itemCard"],
