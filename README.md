@@ -1,16 +1,16 @@
 # ⚒ Arcane Forge
 
-**Artificer's Compendium v1.0**
+**Artificer's Compendium v1.x**
 
 A high-quality D&D magic item generator powered by Google Gemini AI. Create unique magic items with rich lore, detailed descriptions, and stunning visual representations.
 
 ## Features
 
-- **Customizable Generation**: Choose from various item types, rarities, themes, and visual styles
+- **Customizable Generation**: Choose from rich item types, rarities, themes, resonance level, and visual styles
 - **AI-Powered Content**: Uses Google Gemini to generate detailed item descriptions, lore, and mechanics
 - **Visual Generation**: Creates stunning images using Imagen via Gemini
 - **Automatic Archiving**: All generated items are automatically saved to Supabase database
-- **Archives Browser**: Browse, search, and filter your collection of generated items
+- **Archives Browser**: Browse, search, filter, and paginate your collection of generated items
 - **Recent Items Display**: View the last 6 generated items directly on the forge page
 - **Rich Customization Options**:
   - Item types: Weapons, Armor, Potions, Rings, Wands, and more
