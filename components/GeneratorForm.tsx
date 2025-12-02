@@ -1,6 +1,16 @@
 import React from 'react';
 import { GenerationSettings, Rarity, PowerBand } from '../types';
-import { RARITIES, POWER_BANDS, ITEM_TYPES, THEMES, VISUAL_STYLES } from '../constants';
+import {
+  RARITIES,
+  POWER_BANDS,
+  SIMPLE_MELEE_WEAPONS,
+  SIMPLE_RANGED_WEAPONS,
+  MARTIAL_MELEE_WEAPONS,
+  MARTIAL_RANGED_WEAPONS,
+  OTHER_ITEM_TYPES,
+  THEMES,
+  VISUAL_STYLES,
+} from '../constants';
 import { Button } from './Button';
 
 interface GeneratorFormProps {
@@ -50,7 +60,41 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
                 onChange={(e) => handleChange('type', e.target.value)}
                 className={selectClass}
               >
-                {ITEM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                <optgroup label="Weapons – Simple Melee">
+                  {SIMPLE_MELEE_WEAPONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Weapons – Simple Ranged">
+                  {SIMPLE_RANGED_WEAPONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Weapons – Martial Melee">
+                  {MARTIAL_MELEE_WEAPONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Weapons – Martial Ranged">
+                  {MARTIAL_RANGED_WEAPONS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="Other Magic Items">
+                  {OTHER_ITEM_TYPES.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
             <div>
@@ -89,18 +133,18 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
           <div className="lg:col-span-4">
             <div className="flex items-center gap-1.5 mb-1">
               <label className={labelClass}>Resonance Level</label>
-              <div className="relative group">
-                <div className="w-3.5 h-3.5 rounded-full border border-amber-600/50 bg-amber-950/30 flex items-center justify-center cursor-help hover:bg-amber-950/50 transition-colors" style={{ marginTop: '-6px' }}>
-                  <span className="text-[8px] text-amber-500 font-bold leading-none">i</span>
+              <div className="relative group flex items-center" style={{ marginTop: '-6px' }}>
+                <div className="w-3.5 h-3.5 rounded-full border border-amber-600/70 bg-amber-950/40 flex items-center justify-center cursor-help hover:bg-amber-900/70 transition-colors">
+                  <span className="text-[8px] text-amber-400 font-bold leading-none">i</span>
                 </div>
                 {/* Tooltip */}
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#0a0a0a] border border-amber-900/50 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 whitespace-nowrap">
-                  <p className="text-xs text-amber-400 font-serif">
-                    Adjusts item power to match your campaign's magic level.
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-[#050505] border border-amber-900/70 rounded-md shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none z-50 whitespace-nowrap">
+                  <p className="text-[11px] text-amber-100 font-serif">
+                    Adjusts item power to match your campaign’s magic level.
                   </p>
                   {/* Tooltip arrow */}
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 -mt-px">
-                    <div className="border-4 border-transparent border-t-amber-900/50"></div>
+                    <div className="border-4 border-transparent border-t-amber-900/70"></div>
                   </div>
                 </div>
               </div>

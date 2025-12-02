@@ -16,10 +16,57 @@ export const POWER_BANDS: PowerBand[] = [
   'Mythic',
 ];
 
-export const ITEM_TYPES = [
-  'Weapon (Sword)',
-  'Weapon (Axe)',
-  'Weapon (Bow)',
+// Weapon subtypes, grouped for better display in the UI
+export const SIMPLE_MELEE_WEAPONS = [
+  'Weapon (Club)',
+  'Weapon (Dagger)',
+  'Weapon (Greatclub)',
+  'Weapon (Handaxe)',
+  'Weapon (Javelin)',
+  'Weapon (Light Hammer)',
+  'Weapon (Mace)',
+  'Weapon (Quarterstaff)',
+  'Weapon (Sickle)',
+  'Weapon (Spear)',
+];
+
+export const SIMPLE_RANGED_WEAPONS = [
+  'Weapon (Light Crossbow)',
+  'Weapon (Dart)',
+  'Weapon (Shortbow)',
+  'Weapon (Sling)',
+];
+
+export const MARTIAL_MELEE_WEAPONS = [
+  'Weapon (Battleaxe)',
+  'Weapon (Flail)',
+  'Weapon (Glaive)',
+  'Weapon (Greataxe)',
+  'Weapon (Greatsword)',
+  'Weapon (Halberd)',
+  'Weapon (Lance)',
+  'Weapon (Longsword)',
+  'Weapon (Maul)',
+  'Weapon (Morningstar)',
+  'Weapon (Pike)',
+  'Weapon (Rapier)',
+  'Weapon (Scimitar)',
+  'Weapon (Shortsword)',
+  'Weapon (Trident)',
+  'Weapon (War Pick)',
+  'Weapon (Warhammer)',
+  'Weapon (Whip)',
+];
+
+export const MARTIAL_RANGED_WEAPONS = [
+  'Weapon (Blowgun)',
+  'Weapon (Hand Crossbow)',
+  'Weapon (Heavy Crossbow)',
+  'Weapon (Longbow)',
+  'Weapon (Net)',
+];
+
+export const OTHER_ITEM_TYPES = [
   'Armor (Light)',
   'Armor (Heavy)',
   'Shield',
@@ -31,6 +78,15 @@ export const ITEM_TYPES = [
   'Wand',
   'Scroll',
   'Amulet',
+];
+
+// Flat list preserved for any existing usages
+export const ITEM_TYPES = [
+  ...SIMPLE_MELEE_WEAPONS,
+  ...SIMPLE_RANGED_WEAPONS,
+  ...MARTIAL_MELEE_WEAPONS,
+  ...MARTIAL_RANGED_WEAPONS,
+  ...OTHER_ITEM_TYPES,
 ];
 
 export const THEMES = [
