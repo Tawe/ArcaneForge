@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { SavedMagicItem } from '../services/storageService';
 import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls, getSavedItemsCount } from '../services/storageService';
 import { MagicItemResult } from '../types';
@@ -11,6 +12,7 @@ interface SavedItemsProps {
 const ITEMS_PER_PAGE = 12;
 
 export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) => {
+  const navigate = useNavigate();
   const [savedItems, setSavedItems] = useState<SavedMagicItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRarity, setFilterRarity] = useState<string>('all');

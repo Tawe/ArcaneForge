@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { MagicItemResult } from '../types';
 import { getItemFullImageUrl } from '../services/storageService';
+import { ShareButton } from './ShareButton';
 
 interface MagicItemDisplayProps {
   result: MagicItemResult;
@@ -169,13 +170,22 @@ export const MagicItemDisplay: React.FC<MagicItemDisplayProps> = ({ result }) =>
              </div>
         </div>
 
-        {/* Price Tag */}
-        <div className="bg-[#0f0f13] border border-[#2a2a35] p-4 rounded flex justify-between items-center">
-            <span className="text-xs font-fantasy text-slate-500 uppercase tracking-widest">Estimated Value</span>
-            <div className="flex items-center gap-2">
-               <span className="text-amber-500 text-xl font-serif font-bold">{itemData.price_gp.toLocaleString()}</span>
-               <span className="text-xs text-amber-700">gp</span>
-            </div>
+        {/* Price Tag and Share */}
+        <div className="space-y-3">
+          <div className="bg-[#0f0f13] border border-[#2a2a35] p-4 rounded flex justify-between items-center">
+              <span className="text-xs font-fantasy text-slate-500 uppercase tracking-widest">Estimated Value</span>
+              <div className="flex items-center gap-2">
+                 <span className="text-amber-500 text-xl font-serif font-bold">{itemData.price_gp.toLocaleString()}</span>
+                 <span className="text-xs text-amber-700">gp</span>
+              </div>
+          </div>
+          {(result as any)?.id && (
+            <ShareButton 
+              itemId={(result as any).id} 
+              itemName={itemData.name}
+              className="w-full" 
+            />
+          )}
         </div>
 
          {/* JSON Data (Collapsed) */}

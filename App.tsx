@@ -1,10 +1,13 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
+import { Routes, Route, useNavigate } from 'react-router-dom';
 import { GenerationSettings, MagicItemResult } from './types';
 import { DEFAULT_SETTINGS } from './constants';
 import { generateMagicItemText, generateMagicItemImage } from './services/geminiService';
 import { saveItem, getSavedItems, SavedMagicItem } from './services/storageService';
 import { GeneratorForm } from './components/GeneratorForm';
 import { MagicItemDisplay } from './components/MagicItemDisplay';
+import { ItemView } from './pages/ItemView';
+import { useMetaTags } from './hooks/useMetaTags';
 
 // Lazy load components that aren't needed immediately
 const SavedItems = lazy(() => import('./components/SavedItems').then(module => ({ default: module.SavedItems })));
@@ -46,13 +49,22 @@ const checkClientRateLimit = (): { allowed: boolean; retryAfterSeconds?: number 
   }
 };
 
-const App: React.FC = () => {
+const ForgePage: React.FC = () => {
+  const navigate = useNavigate();
   const [settings, setSettings] = useState<GenerationSettings>(DEFAULT_SETTINGS);
   const [isGenerating, setIsGenerating] = useState(false);
   const [result, setResult] = useState<MagicItemResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('generate');
   const [recentItems, setRecentItems] = useState<SavedMagicItem[]>([]);
+
+  // Set default meta tags for the main page
+  useMetaTags({
+    title: 'Arcane Forge - D&D Magic Item Generator',
+    description: 'Generate unique D&D magic items with AI. Create custom weapons, armor, potions, and more with rich lore and stunning visuals.',
+    image: `${window.location.origin}/favicon.svg`,
+    url: window.location.origin,
+  });
 
   // Load recent items when on generate view (defer initial load)
   useEffect(() => {
@@ -117,6 +129,9 @@ const App: React.FC = () => {
         const saved = await saveItem(finalResult);
         if (saved) {
           console.log('Item automatically saved to archives');
+          // Add the ID to the result so share button works
+          finalResult = { ...finalResult, id: saved.id } as any;
+          setResult(finalResult);
           // Reload recent items to show the new one
           await loadRecentItems();
         }
@@ -198,19 +213,24 @@ const App: React.FC = () => {
           }>
             <SavedItems
               onViewItem={async (item) => {
-                // If item doesn't have full data, fetch it
-                if (!item.itemCard || !item.imagePrompt) {
-                  const { getItemById } = await import('./services/storageService');
-                  const fullItem = await getItemById(item.id);
-                  if (fullItem) {
-                    setResult(fullItem);
+                // Navigate to the item's shareable URL
+                if (item.id) {
+                  navigate(`/item/${item.id}`);
+                } else {
+                  // Fallback: if no ID, show in current view (shouldn't happen for saved items)
+                  if (!item.itemCard || !item.imagePrompt) {
+                    const { getItemById } = await import('./services/storageService');
+                    const fullItem = await getItemById(item.id);
+                    if (fullItem) {
+                      setResult(fullItem);
+                    } else {
+                      setResult(item);
+                    }
                   } else {
                     setResult(item);
                   }
-                } else {
-                  setResult(item);
+                  setViewMode('generate');
                 }
-                setViewMode('generate');
               }}
               onBack={() => setViewMode('generate')}
             />
@@ -270,20 +290,24 @@ const App: React.FC = () => {
                 <RecentItems 
                   items={recentItems} 
                   onViewItem={async (item) => {
-                    // If item doesn't have full data, fetch it
-                    if (!item.itemCard || !item.imagePrompt) {
-                      const { getItemById } = await import('./services/storageService');
-                      const fullItem = await getItemById(item.id);
-                      if (fullItem) {
-                        setResult(fullItem);
+                    // Navigate to the item's shareable URL if it has an ID
+                    if (item.id) {
+                      navigate(`/item/${item.id}`);
+                    } else {
+                      // Fallback: show in current view and scroll to top
+                      if (!item.itemCard || !item.imagePrompt) {
+                        const { getItemById } = await import('./services/storageService');
+                        const fullItem = await getItemById(item.id);
+                        if (fullItem) {
+                          setResult(fullItem);
+                        } else {
+                          setResult(item);
+                        }
                       } else {
                         setResult(item);
                       }
-                    } else {
-                      setResult(item);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
                     }
-                    // Scroll to top to show the item
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }}
                 />
               </Suspense>
@@ -309,6 +333,15 @@ const App: React.FC = () => {
         </div>
       </footer>
     </div>
+  );
+};
+
+const App: React.FC = () => {
+  return (
+    <Routes>
+      <Route path="/" element={<ForgePage />} />
+      <Route path="/item/:id" element={<ItemView />} />
+    </Routes>
   );
 };
 
