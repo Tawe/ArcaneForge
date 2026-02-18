@@ -19,7 +19,7 @@ const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 /**
  * Check if Supabase is properly configured
  */
-const isSupabaseConfigured = (): boolean => {
+export const isSupabaseConfigured = (): boolean => {
   const url = import.meta.env.VITE_SUPABASE_URL;
   return !!(url && url !== '' && !url.includes('placeholder'));
 };

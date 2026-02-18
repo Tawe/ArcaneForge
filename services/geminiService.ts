@@ -13,7 +13,7 @@ const SAFETY_SETTINGS = [
  * Strip control characters, XML/HTML tags, and normalise the lore seed
  * before it is interpolated into the system prompt.
  */
-function sanitizeLoreSeed(input: string): string {
+export function sanitizeLoreSeed(input: string): string {
   return input
     // Remove null bytes and non-printable control characters (keep newlines/tabs for readability)
     .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
