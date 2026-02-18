@@ -168,6 +168,26 @@ export const GeneratorForm: React.FC<GeneratorFormProps> = ({
 
         </div>
 
+        {/* Lore Seed */}
+        <div className="mt-6 pt-6 border-t border-[#2a2a35]">
+          <div className="flex items-baseline justify-between mb-1">
+            <label className={labelClass}>Lore Seed <span className="text-slate-600 normal-case tracking-normal font-serif italic">(optional)</span></label>
+            <span className="text-[10px] text-slate-600 font-mono">
+              {(settings.customPrompt ?? '').length}/300
+            </span>
+          </div>
+          <textarea
+            value={settings.customPrompt ?? ''}
+            onChange={(e) => handleChange('customPrompt', e.target.value.slice(0, 300))}
+            placeholder="e.g. 'A blade forged by a traitorous elven general, now cursed to whisper secrets to its wielder...'"
+            rows={2}
+            className="w-full bg-[#050505] border border-[#2a2a35] text-slate-300 rounded-sm px-3 py-2 text-sm focus:border-amber-600 focus:ring-1 focus:ring-amber-900 focus:outline-none transition-colors font-serif tracking-wide resize-none placeholder:text-slate-700"
+          />
+          <p className="text-[10px] text-slate-600 mt-1 font-serif italic">
+            Guide the AI with a narrative hook, backstory, or character context. Leave blank for a fully original item.
+          </p>
+        </div>
+
         {/* Bottom Row: Toggles and Generate Button */}
         <div className="mt-6 pt-6 border-t border-[#2a2a35] flex flex-col md:flex-row items-center justify-between gap-6">
             

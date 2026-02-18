@@ -41,6 +41,9 @@ export const generateMagicItemText = async (
 
     Price_gp should use pricing guidelines inspired by Xanathar's Guide but scaled appropriately for the Power Band (higher power bands = higher prices).
     Tone: evocative, immersive, but mechanically precise.
+    ${settings.customPrompt?.trim()
+      ? `\nLore Seed / Custom Inspiration:\n"${settings.customPrompt.trim()}"\nUse this to shape the item's name, backstory, description, and flavor. The item should feel connected to this context while still respecting all other constraints (rarity, type, theme, power band). Do not quote the lore seed verbatim in the output.`
+      : ''}
   `;
 
   const prompt = `Generate a magic item based on the system instructions. Return JSON data only.`;

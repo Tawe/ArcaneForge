@@ -10,6 +10,7 @@ export interface GenerationSettings {
   powerBand: PowerBand;
   includeCurse: boolean;
   includePlotHook: boolean;
+  customPrompt?: string;
 }
 
 export interface ItemMechanics {

@@ -22,10 +22,8 @@ export const Button: React.FC<ButtonProps> = ({
       disabled={isLoading || disabled}
       {...props}
     >
-      {/* Inner glow effect for primary buttons */}
-      {variant === 'primary' && (
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-gradient-to-t from-amber-400 to-transparent transition-opacity duration-300 pointer-events-none"></div>
-      )}
+      {/* Inner glow effect */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-20 bg-gradient-to-t from-amber-400 to-transparent transition-opacity duration-300 pointer-events-none"></div>
 
       {isLoading ? (
         <>

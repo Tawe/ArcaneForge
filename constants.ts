@@ -117,4 +117,5 @@ export const DEFAULT_SETTINGS = {
   powerBand: 'Standard' as PowerBand,
   includeCurse: false,
   includePlotHook: true,
+  customPrompt: '',
 };
