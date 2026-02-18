@@ -439,37 +439,6 @@ export const getItemById = async (id: string): Promise<SavedMagicItem | null> =>
 };
 
 /**
- * Get image URL for an item (separate function for lazy loading)
- */
-export const getItemImageUrl = async (id: string): Promise<string | null> => {
-  if (!isSupabaseConfigured()) {
-    return null;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from(TABLE_NAME)
-      .select('image_url')
-      .eq('id', id)
-      .single();
-
-    if (error) {
-      console.error('Error fetching image:', error);
-      return null;
-    }
-
-    if (!data || !data.image_url) {
-      return null;
-    }
-
-    return data.image_url;
-  } catch (error) {
-    console.error('Failed to get item image:', error);
-    return null;
-  }
-};
-
-/**
  * Batch load thumbnail URLs for multiple items (for list views)
  * Uses thumbnails for fast progressive loading
  */

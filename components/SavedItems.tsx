@@ -1,18 +1,104 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { SavedMagicItem } from '../services/storageService';
 import { getSavedItems, searchSavedItems, removeItem, getItemImageUrls, getSavedItemsCount } from '../services/storageService';
 import { MagicItemResult } from '../types';
 
-interface SavedItemsProps {
-  onViewItem: (item: MagicItemResult) => void;
-  onBack: () => void;
-}
-
 const ITEMS_PER_PAGE = 12;
 
-export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) => {
-  const navigate = useNavigate();
+const rarityConfig: Record<string, { color: string; border: string }> = {
+  'Common': { color: 'text-slate-400', border: 'border-slate-600' },
+  'Uncommon': { color: 'text-emerald-400', border: 'border-emerald-600' },
+  'Rare': { color: 'text-blue-400', border: 'border-blue-500' },
+  'Very Rare': { color: 'text-purple-400', border: 'border-purple-500' },
+  'Legendary': { color: 'text-amber-400', border: 'border-amber-500' },
+  'Artifact': { color: 'text-red-500', border: 'border-red-500' },
+};
+
+const formatDate = (item: SavedMagicItem) => {
+  const date = item.savedAt ? new Date(item.savedAt) : new Date(item.created_at);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const ItemCard: React.FC<{
+  item: SavedMagicItem;
+  config: { color: string; border: string };
+  onViewItem: (item: MagicItemResult) => void;
+  onDelete: (id: string, e: React.MouseEvent) => void;
+  imageUrl: string | null | undefined;
+}> = ({ item, config, onViewItem, onDelete, imageUrl }) => {
+  return (
+    <div
+      onClick={() => onViewItem(item)}
+      className="relative bg-[#0f0f13] border border-[#2a2a35] rounded-md p-4 cursor-pointer hover:border-amber-600/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] group"
+    >
+      {/* Delete Button */}
+      <button
+        onClick={(e) => onDelete(item.id, e)}
+        className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-950/30 border border-red-900/50 rounded text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-950/50 text-xs"
+        title="Remove from collection"
+      >
+        ×
+      </button>
+
+      {/* Item Image/Icon */}
+      <div className={`aspect-square rounded mb-4 overflow-hidden border-2 ${config.border} bg-black relative`}>
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={item.itemData.name}
+            className="w-full h-full object-cover transition-opacity duration-300"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-[#050505]">
+            <span className="text-4xl opacity-30">🔮</span>
+          </div>
+        )}
+        <div className={`absolute inset-0 opacity-10 pointer-events-none shadow-[inset_0_0_50px_currentColor] ${config.color}`}></div>
+      </div>
+
+      {/* Item Info */}
+      <div>
+        <h3 className={`text-lg font-fantasy font-bold mb-1 ${config.color} line-clamp-1`}>
+          {item.itemData.name}
+        </h3>
+        <p className="text-xs text-slate-500 font-serif italic mb-1">
+          {item.itemData.type} • {item.itemData.rarity}
+        </p>
+        {item.itemData.powerBand && (
+          <p className="text-xs text-amber-500/80 font-fantasy uppercase tracking-wider mb-2">
+            Resonance: {item.itemData.powerBand}
+          </p>
+        )}
+        <p className="text-sm text-slate-400 line-clamp-2 mb-3 font-serif">
+          {item.itemData.description}
+        </p>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between text-xs text-slate-600">
+          <span className="font-mono">{formatDate(item)}</span>
+          <span className="text-amber-600 font-fantasy">View →</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface SavedItemsProps {
+  onViewItem: (item: MagicItemResult) => void;
+}
+
+export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem }) => {
   const [savedItems, setSavedItems] = useState<SavedMagicItem[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterRarity, setFilterRarity] = useState<string>('all');
@@ -114,21 +200,6 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  useEffect(() => {
-    // Reset to page 1 when rarity filter changes
-    setCurrentPage(1);
-    // Load items for page 1 with current filter
-    if (searchQuery.trim()) {
-      loadSearchResults(searchQuery, 1);
-    } else {
-      loadItems(1);
-    }
-  }, [filterRarity]);
-
-  // Note: Page loading is now handled directly in handlePageChange
-  // This effect only handles cases where currentPage changes outside of user navigation
-  // (e.g., when search/filter resets to page 1, which already loads data)
-
   const filteredItems = useMemo(() => {
     // Apply rarity filter to current page items
     if (filterRarity === 'all') {
@@ -173,106 +244,6 @@ export const SavedItems: React.FC<SavedItemsProps> = ({ onViewItem, onBack }) =>
     }
     // Scroll to top when page changes
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const rarityConfig: Record<string, { color: string; border: string }> = {
-    'Common': { color: 'text-slate-400', border: 'border-slate-600' },
-    'Uncommon': { color: 'text-emerald-400', border: 'border-emerald-600' },
-    'Rare': { color: 'text-blue-400', border: 'border-blue-500' },
-    'Very Rare': { color: 'text-purple-400', border: 'border-purple-500' },
-    'Legendary': { color: 'text-amber-400', border: 'border-amber-500' },
-    'Artifact': { color: 'text-red-500', border: 'border-red-500' },
-  };
-
-  const formatDate = (item: SavedMagicItem) => {
-    const date = item.savedAt ? new Date(item.savedAt) : new Date(item.created_at);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  // Item card component with lazy image loading
-  const ItemCard: React.FC<{
-    item: SavedMagicItem;
-    config: { color: string; border: string };
-    onViewItem: (item: MagicItemResult) => void;
-    onDelete: (id: string, e: React.MouseEvent) => void;
-    imageUrl: string | null | undefined;
-  }> = ({ item, config, onViewItem, onDelete, imageUrl }) => {
-
-    return (
-      <div
-        onClick={() => onViewItem(item)}
-        className="relative bg-[#0f0f13] border border-[#2a2a35] rounded-md p-4 cursor-pointer hover:border-amber-600/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(245,158,11,0.2)] group"
-      >
-        {/* Delete Button */}
-        <button
-          onClick={(e) => onDelete(item.id, e)}
-          className="absolute top-2 right-2 w-6 h-6 flex items-center justify-center bg-red-950/30 border border-red-900/50 rounded text-red-400 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-950/50 text-xs"
-          title="Remove from collection"
-        >
-          ×
-        </button>
-
-        {/* Item Image/Icon */}
-        <div className={`aspect-square rounded mb-4 overflow-hidden border-2 ${config.border} bg-black relative`}>
-          {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={item.itemData.name}
-              className="w-full h-full object-cover transition-opacity duration-300"
-              loading="lazy"
-              decoding="async"
-              onError={(e) => {
-                // Hide broken images
-                (e.target as HTMLImageElement).style.display = 'none';
-              }}
-              onLoad={(e) => {
-                // Progressive enhancement: if this is a thumbnail, load full image
-                const img = e.target as HTMLImageElement;
-                if (img.naturalWidth < 300) {
-                  // Likely a thumbnail, could load full image in background
-                  // But for now, thumbnails are sufficient for list view
-                }
-              }}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-[#050505]">
-              <span className="text-4xl opacity-30">🔮</span>
-            </div>
-          )}
-          <div className={`absolute inset-0 opacity-10 pointer-events-none shadow-[inset_0_0_50px_currentColor] ${config.color}`}></div>
-        </div>
-
-        {/* Item Info */}
-        <div>
-          <h3 className={`text-lg font-fantasy font-bold mb-1 ${config.color} line-clamp-1`}>
-            {item.itemData.name}
-          </h3>
-          <p className="text-xs text-slate-500 font-serif italic mb-1">
-            {item.itemData.type} • {item.itemData.rarity}
-          </p>
-          {item.itemData.powerBand && (
-            <p className="text-xs text-amber-500/80 font-fantasy uppercase tracking-wider mb-2">
-              Resonance: {item.itemData.powerBand}
-            </p>
-          )}
-          <p className="text-sm text-slate-400 line-clamp-2 mb-3 font-serif">
-            {item.itemData.description}
-          </p>
-          
-          {/* Footer */}
-          <div className="flex items-center justify-between text-xs text-slate-600">
-            <span className="font-mono">{formatDate(item)}</span>
-            <span className="text-amber-600 font-fantasy">View →</span>
-          </div>
-        </div>
-      </div>
-    );
   };
 
   return (

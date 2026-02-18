@@ -80,15 +80,6 @@ export const OTHER_ITEM_TYPES = [
   'Amulet',
 ];
 
-// Flat list preserved for any existing usages
-export const ITEM_TYPES = [
-  ...SIMPLE_MELEE_WEAPONS,
-  ...SIMPLE_RANGED_WEAPONS,
-  ...MARTIAL_MELEE_WEAPONS,
-  ...MARTIAL_RANGED_WEAPONS,
-  ...OTHER_ITEM_TYPES,
-];
-
 export const THEMES = [
   'None',
   'Celestial',

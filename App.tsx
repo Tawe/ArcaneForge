@@ -232,7 +232,6 @@ const ForgePage: React.FC = () => {
                   setViewMode('generate');
                 }
               }}
-              onBack={() => setViewMode('generate')}
             />
           </Suspense>
         ) : (

@@ -5,45 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Arcane Forge</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    
+
     <!-- Default Open Graph tags (will be updated dynamically) -->
     <meta property="og:title" content="Arcane Forge - D&D Magic Item Generator" />
     <meta property="og:description" content="Generate unique D&D magic items with AI. Create custom weapons, armor, potions, and more with rich lore and stunning visuals." />
     <meta property="og:image" content="" />
     <meta property="og:url" content="" />
     <meta property="og:type" content="website" />
-    
+
     <!-- Twitter Card tags (will be updated dynamically) -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Arcane Forge - D&D Magic Item Generator" />
     <meta name="twitter:description" content="Generate unique D&D magic items with AI. Create custom weapons, armor, potions, and more with rich lore and stunning visuals." />
     <meta name="twitter:image" content="" />
-    <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              fantasy: ['Cinzel', 'serif'],
-              serif: ['"Crimson Text"', 'serif'],
-            },
-            colors: {
-              arcane: {
-                900: '#050505', // Void
-                800: '#0f0f13', // Dark metal
-                700: '#1a1a2e', // Deep shadow
-                gold: '#c5a059', // Antique Gold
-                glow: '#a855f7', // Magic Purple
-              }
-            },
-            backgroundImage: {
-              'parchment': "url('https://www.transparenttextures.com/patterns/aged-paper.png')",
-            }
-          }
-        }
-      }
-    </script>
     <style>
       body {
         font-family: 'Crimson Text', serif;
@@ -53,32 +28,8 @@
       h1, h2, h3, h4, h5, h6, .font-fantasy {
         font-family: 'Cinzel', serif;
       }
-      /* Custom scrollbar */
-      ::-webkit-scrollbar {
-        width: 8px;
-      }
-      ::-webkit-scrollbar-track {
-        background: #0f0f13; 
-      }
-      ::-webkit-scrollbar-thumb {
-        background: #3f3f46; 
-        border: 1px solid #18181b;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: #52525b; 
-      }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0"
-  }
-}
-</script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="./index.tsx"></script>
